@@ -100,7 +100,7 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
             onClick={() => setIsPopupOpen(true)}
             className="hover:underline focus:outline-none"
           >
-            View full scan result >>
+            Click here to view full report &gt;&gt;
           </button>
         </div>
       </div>

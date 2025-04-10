@@ -116,7 +116,7 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
         {/* Fixed Close Button */}
         <button
           onClick={onClose}
-          className="fixed top-5 right-90 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors z-50 bg-white rounded-full p-2 shadow-md"
+          className="fixed top-5 right-97 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors z-50 bg-white rounded-full p-2 shadow-md"
           aria-label="Close popup"
         >
           <svg

@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import ApiInfoBubble from "../Components/ApiInfoBubble";
 import VirusTotalAnalysis from "../Components/APIs/virustotal";
-import TrustLensSecurityCheck from "../Components/Security Check/TrustLensSecurityCheck";
+import TrustLensSecurityCheck from "./Security Check/DomainSecurity";
 
 const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysis, isLoading }) => {
   // Map the backend overall safety status to the front-end display value
