@@ -1,0 +1,74 @@
+DNS Security Report for: weebly.com
+IP Address: 74.115.51.6
+Domain Age: 45 days
+Security Score: 35 / 100
+
+DNS Resolution [LOW]:
+- Status: Exists
+- Explanation:
+   * Domain successfully resolved to an IP address
+Domain Age [LOW]:
+- Status: 45 days
+- Explanation:
+   * Established domain - lower inherent risk
+   * Source: SSL Certificate
+MX Records [LOW]:
+- Status: Present
+- Explanation:
+   * Unrecognized MX host: aspmx3.googlemail.com.
+   * Unrecognized MX host: aspmx2.googlemail.com.
+   * Uses trusted email provider(s): Google Mail
+SPF Record [LOW]:
+- Status: Present
+- Explanation:
+   * SPF found, likely using soft fail (~all) or neutral policy
+DKIM/DMARC [MEDIUM]:
+- Status: DKIM missing, DMARC missing
+- Explanation:
+   * DKIM missing - reduces email authenticity
+   * DMARC missing - vulnerable to domain spoofing
+DNSSEC [MEDIUM]:
+- Status: Not enabled
+- Explanation:
+   * DNSSEC not configured - vulnerable to DNS spoofing
+Reverse DNS [MEDIUM]:
+- Status: Resolved to www.weebly.com.
+- Explanation:
+   * Reverse DNS does not match domain - potential misconfiguration
+   * Recommendation: Ensure PTR record aligns with domain
+HTTP/HTTPS Availability [MEDIUM]:
+- Status: HTTPS OK (Status: 200)
+- Explanation:
+   * Redirected to: https://www.weebly.com/
+   * Certificate issued 45 days ago
+   * HSTS not enabled - no strict HTTPS enforcement
+   * Recommendation: Enable HSTS header
+Blacklist Status [LOW]:
+- Status: Not listed
+- Explanation:
+   * IP not found in common blacklists - good reputation
+GeoIP Location [LOW]:
+- Status: Oakland, United States (ISP: Weebly, Inc.)
+- Explanation:
+   * IP located in United States - hosted by Weebly, Inc.
+Subdomain Enumeration [LOW]:
+- Status: Found: www.weebly.com, mail.weebly.com, ftp.weebly.com, blog.weebly.com, shop.weebly.com
+- Explanation:
+   * Active subdomains detected: 5
+   * Recommendation: Verify these are intentional and secure
+CAA Records [MEDIUM]:
+- Status: Not found
+- Explanation:
+   * No CAA records - unrestricted certificate issuance
+   * Recommendation: Add CAA records (e.g., '0 issue "letsencrypt.org"')
+
+Risk Distribution (Visual):
+Critical:  (0)
+High:  (0)
+Medium: ########## (5)
+Low: ############## (7)
+
+Risk Summary:
+Critical: 0 | High: 0 | Medium: 5 | Low: 7
+
+Overall Assessment: Insecure - Significant security issues detected.
