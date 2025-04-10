@@ -2,59 +2,36 @@ import React from "react";
 import PropTypes from "prop-types";
 import ApiInfoBubble from "../Components/ApiInfoBubble";
 import VirusTotalAnalysis from "../Components/APIs/virustotal";
+import TrustLensSecurityCheck from "../Components/Security Check/TrustLensSecurityCheck";
 
 const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysis, isLoading }) => {
-  const determineOverallSafetyStatus = () => {
-    const apiResults = [
-      safetyStatus.details.virustotal?.status,
-    ];
-
-    // If any API returns "Unsafe", the overall status is "Unsafe"
-    if (apiResults.some((status) => status === "Unsafe")) {
-      return "Unsafe";
+  // Map the backend overall safety status to the front-end display value
+  const mapOverallSafetyStatus = (backendStatus) => {
+    if (backendStatus === "Unknown" || backendStatus === "URL DOES NOT EXIST") {
+      return "URL Unknown"; // Display "URL Unknown" for non-existent domains
     }
-    // If all APIs return "Safe", the overall status is "Safe"
-    if (apiResults.every((status) => status === "Safe")) {
-      return "Safe";
-    }
-    // If there are any "Error", "Unknown", or "Pending" statuses, the overall status is "Unknown"
-    if (apiResults.some((status) => status === "Error" || status === "Unknown" || status === "Pending")) {
-      return "Unknown";
-    }
-    // Default to "Unknown" for any unexpected cases
-    return "Unknown";
+    return backendStatus; // Use the backend status directly for other cases
   };
 
-  const getWhoisWarning = () => {
-    const whoisMessage = safetyStatus.details.whois?.message || "N/A";
-    let warning = null;
-
-    if (whoisMessage === "N/A" || !whoisMessage) {
-      return "Warning: Lack of historical data for this domain. This may indicate a lack of legitimacy.";
-    }
-
-    const ageMatch = whoisMessage.match(/\((\d+) days old\)/);
-    if (ageMatch) {
-      const daysOld = parseInt(ageMatch[1], 10);
-
-      if (daysOld < 30) {
-        return `Warning: This domain is newly registered (${daysOld} days old). Newly registered domains are often vulnerable for phishing, scams, or malware distribution. \p Please proceed with caution.`;
-      }
-    }
-
-    return null;
-  };
-
-  const overallSafetyStatus = determineOverallSafetyStatus();
-  const whoisWarning = getWhoisWarning();
+  const overallSafetyStatus = safetyStatus.overall
+    ? mapOverallSafetyStatus(safetyStatus.overall)
+    : "Unknown"; // Fallback to "Unknown" if safetyStatus.overall is not set
 
   // Determine the background color based on overallSafetyStatus
   const backgroundColorClass =
-    overallSafetyStatus === "Safe" || "Unknown"
-      ? "bg-gradient-to-br from-blue-50 to-blue-100"
+    overallSafetyStatus === "Safe"
+      ? "bg-gradient-to-br from-green-50 to-green-100"
       : overallSafetyStatus === "Unsafe"
       ? "bg-gradient-to-br from-red-50 to-red-100"
+      : overallSafetyStatus === "URL Unknown"
+      ? "bg-gradient-to-br from-gray-50 to-gray-100"
+      : overallSafetyStatus === "Unknown"
+      ? "bg-gradient-to-br from-blue-50 to-blue-100"
       : "bg-gradient-to-br from-yellow-50 to-yellow-100";
+
+  // Check if URL is non-existent (based on backend overall status or TrustLens status)
+  const isUrlNonExistent =
+    safetyStatus.details?.url_info?.status === "Non-existent";
 
   return (
     <div className={`w-full ${backgroundColorClass} rounded-lg overflow-hidden shadow-lg`}>
@@ -107,7 +84,7 @@ const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysi
           </div>
         ) : extractedUrl ? (
           <div className="p-4 space-y-4">
-            {/* Overall Safety Status and WHOIS Warning */}
+            {/* Overall Safety Status */}
             <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
               <h3 className="font-semibold text-gray-800">Overall Safety Status</h3>
               <p className="text-gray-700">
@@ -118,49 +95,29 @@ const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysi
                       ? "text-green-600"
                       : overallSafetyStatus === "Unsafe"
                       ? "text-red-600"
+                      : overallSafetyStatus === "URL Unknown"
+                      ? "text-gray-600"
+                      : overallSafetyStatus === "Unknown"
+                      ? "text-blue-600"
                       : "text-yellow-600"
                   }`}
                 >
                   {overallSafetyStatus}
                 </span>
               </p>
-              {overallSafetyStatus === "Safe" && whoisWarning && (
-                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-700 text-sm">
-                  <p>{whoisWarning}</p>
-                </div>
-              )}
             </div>
 
-            {/* VirusTotal */}
-            {safetyStatus.details.virustotal && (
+            {/* VirusTotal (only show if URL exists and VirusTotal result is present) */}
+            {!isUrlNonExistent && safetyStatus.details?.virustotal?.status && (
               <VirusTotalAnalysis safetyStatus={safetyStatus} extractedUrl={extractedUrl} />
             )}
 
-            {/* WHOIS Database */}
-            {safetyStatus.details.whois && (
-              <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
-                <div className="flex items-center mb-2">
-                  <div className="h-6 w-6 rounded-full bg-blue-500 text-white flex items-center justify-center mr-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2h2a1 1 0 100-2H9z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <span className="font-medium text-gray-800">WHOIS Database</span>
-                  <ApiInfoBubble apiName="WHOIS Database" />
-                </div>
-                <div className="ml-8">
-                  <p className="text-sm text-gray-600">{safetyStatus.details.whois.message || "N/A"}</p>
-                </div>
-              </div>
+            {/* TrustLens URL Security Status Check */}
+            {safetyStatus.details?.url_info && (
+              <TrustLensSecurityCheck
+                safetyStatus={safetyStatus}
+                extractedUrl={extractedUrl}
+              />
             )}
           </div>
         ) : (
@@ -177,6 +134,7 @@ UrlAnalysis.propTypes = {
   extractedUrl: PropTypes.string,
   safetyStatus: PropTypes.shape({
     overall: PropTypes.string,
+    message: PropTypes.string,
     details: PropTypes.object,
   }),
   isAnalysisOpen: PropTypes.bool.isRequired,

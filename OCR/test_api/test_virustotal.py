@@ -111,7 +111,7 @@ def check_virustotal(url: str) -> dict:
 if __name__ == "__main__":
     # Test URLs
     test_urls = [
-        "https://www.y0utube.com"
+        "http://sunwayautoparts.com/874ghv3"
           # Replace with a known malicious URL for testing
     ]
 

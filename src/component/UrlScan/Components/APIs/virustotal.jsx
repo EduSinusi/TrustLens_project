@@ -19,8 +19,9 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
   const isUnsafe = status === "Unsafe";
 
   return (
-    <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
-      <div className="flex items-center mb-2">
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-200">
+      {/* Header with Icon and API Info Bubble */}
+      <div className="flex items-center mb-3">
         <div
           className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 ${
             status === "Safe" ? "bg-green-500" : "bg-red-500"
@@ -57,25 +58,32 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
         <span className="font-medium text-gray-800">VirusTotal</span>
         <ApiInfoBubble apiName="VirusTotal" />
       </div>
-      <div className="ml-8">
-        {isUnsafe && message && (
-          <div className="bg-gray-50 p-2 rounded-md mb-2">
-            <p className="text-md font-bold text-gray-700">
-              Stats: Malicious:{" "}
-              {message.match(/Malicious detections: (\d+)/)?.[1] || "N/A"},
-              Suspicious: {message.match(/Suspicious: (\d+)/)?.[1] || "0"}
+
+      {/* Content */}
+      <div className="ml-8 space-y-3">
+        {isUnsafe && message ? (
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 shadow-sm">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Malicious Detections:</span>{" "}
+              <span className="text-red-600 font-medium">
+                {message.match(/Malicious detections: (\d+)/)?.[1] || "N/A"}
+              </span>
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              <span className="font-medium">Suspicious Detections:</span>{" "}
+              <span className="text-yellow-600 font-medium">
+                {message.match(/Suspicious: (\d+)/)?.[1] || "0"}
+              </span>
             </p>
           </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            {formatMessage(message)}
+          </p>
         )}
-        <div className="text-xs text-blue-600">
-          <button
-            onClick={() => setIsPopupOpen(true)}
-            className="hover:underline focus:outline-none"
-          >
-            view full scan result >>
-          </button>
-        </div>
-        <p className="mt-2 text-gray-700">
+
+        {/* Safety Status */}
+        <p className="text-gray-700">
           Safety Status:{" "}
           <span
             className={`font-medium ${
@@ -85,11 +93,19 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
             {status === "Safe" ? "Safe" : "Unsafe"}
           </span>
         </p>
-        {message && !isUnsafe && (
-          <p className="text-sm text-gray-600">{formatMessage(message)}</p>
-        )}
+
+        {/* Link to Full Report */}
+        <div className="text-xs text-blue-600">
+          <button
+            onClick={() => setIsPopupOpen(true)}
+            className="hover:underline focus:outline-none"
+          >
+            View full scan result >>
+          </button>
+        </div>
       </div>
 
+      {/* Full Report Popup */}
       <VirusTotalFullResultPopup
         isOpen={isPopupOpen}
         onClose={() => setIsPopupOpen(false)}
