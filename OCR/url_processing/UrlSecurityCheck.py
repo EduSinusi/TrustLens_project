@@ -428,20 +428,35 @@ class DNSSecurityAnalyzer:
             except socket.gaierror as e:
                 logging.warning(f"DNS resolution failed: {e}")
                 if not self.check_domain_existence(domain):
+                    # Domain does not exist - immediately return with "Unknown" status
                     results['checks'].append({
                         'check': 'DNS Resolution',
                         'status': 'Non-existent',
-                        'risk': 'critical',
+                        'risk': 'N/A',  # Risk is not applicable since we're returning early
                         'explanation': [
                             "Domain does not exist in DNS.",
                             "Possible typo or unregistered domain.",
                             "Recommendation: Verify the domain name or contact the domain owner."
                         ]
                     })
-                    results['risk_summary']['critical'] += 1
-                    results['security_score'] -= 50
+                    # Update results to reflect "Unknown" status
+                    results['status'] = "Unknown"
+                    results['message'] = "Domain does not exist in DNS"
+                    # Ensure minimal results structure
+                    results['ip'] = None
+                    results['ipv6'] = []
+                    results['age_info'] = None
+                    results['risk_summary'] = {
+                        'critical': 0,
+                        'high': 0,
+                        'medium': 0,
+                        'low': 0
+                    }
+                    results['security_score'] = 0  # No security score since domain doesn't exist
+                    logging.info(f"Domain {domain} does not exist - returning Unknown status")
                     return results
                 else:
+                    # Temporary DNS failure
                     results['checks'].append({
                         'check': 'DNS Resolution',
                         'status': 'Failed',
@@ -450,7 +465,7 @@ class DNSSecurityAnalyzer:
                     })
                     results['risk_summary']['medium'] += 1
                     results['security_score'] -= 20
-                    return results
+                    # Continue with the rest of the checks
 
             # Domain Age
             try:
@@ -664,14 +679,43 @@ class DNSSecurityAnalyzer:
 
         return results
 
-if __name__ == "__main__":
+def check_url_info(url: str) -> dict:
+    """Simplified function to check URL info using DNSSecurityAnalyzer."""
     analyzer = DNSSecurityAnalyzer(timeout=10)
-    try:
-        results = analyzer.enhanced_dns_check("https://google.com")
-        if results is None:
-            print("Error: Analysis returned None")
-        else:
-            print(json.dumps(results, indent=2))
-    except Exception as e:
-        logging.error(f"Unexpected error: {str(e)}")
-        print(f"Error: {str(e)}")
+    result = analyzer.enhanced_dns_check(url)
+
+    # Check if domain does not exist
+    dns_check = next((check for check in result['checks'] if check['check'] == 'DNS Resolution'), None)
+    if dns_check and dns_check['status'] == 'Non-existent':
+        return {
+            "status": "Non-existent",
+            "message": "Domain does not exist in DNS",
+            "details": result
+        }
+
+    # Determine status based on security score and risk summary
+    security_score = result['security_score']
+    risk_summary = result['risk_summary']
+    
+    if risk_summary['critical'] > 0 or risk_summary['high'] >= 2:
+        status = "Unsafe"
+        message = "High risk detected in DNS security analysis"
+    elif security_score < 25 or risk_summary['high'] >= 1 or risk_summary['medium'] > 6:
+        status = "Potentially Unsafe"
+        message = "Moderate risk detected in DNS security analysis"
+    elif security_score >= 25 or risk_summary['medium'] <= 6:
+        status = "Safe"
+        message = "Low risk detected in DNS security analysis"
+    else:
+        status = "Unknown"
+        message = "Insufficient data to determine safety"
+
+    return {
+        "status": status,
+        "message": message,
+        "details": result
+    }
+
+if __name__ == "__main__":
+    result = check_url_info("https://google.com")
+    print(json.dumps(result, indent=2))

@@ -151,12 +151,12 @@ const ImageExtract = () => {
               </button>
               <button
                 onClick={() => {
-                  navigate("/url-scan/image");
+                  navigate("/url-scan/webcam");
                   setIsNavMenuOpen(false);
                 }}
                 className="block w-full text-left px-4 py-2 text-md font-semibold hover:bg-gray-700"
               >
-                Image Scan
+                Live Scan
               </button>
             </div>
           )}

@@ -81,10 +81,52 @@ def check_virustotal(url: str) -> dict:
 
     except requests.exceptions.HTTPError as e:
         print(f"VirusTotal HTTP error for {url}: {str(e)}")
-        return {"status": "Error", "message": f"VirusTotal HTTP error: {str(e)}"}
+        # Handle 400 Bad Request and other HTTP errors by returning "Unknown"
+        error_message = str(e).lower()
+        if "400 client error" in error_message:
+            reason = "Invalid request format (e.g., malformed URL or missing parameters)"
+        elif "401 client error" in error_message:
+            reason = "Invalid or unauthorized API key"
+        elif "403 client error" in error_message:
+            reason = "Access forbidden (check API key permissions)"
+        else:
+            reason = "Unexpected HTTP error occurred"
+        # Store a minimal full result for consistency
+        virustotal_full_results[url] = {
+            "status": "Unknown",
+            "message": f"Could not analyze URL: {reason}",
+            "stats": {
+                "malicious": 0,
+                "suspicious": 0,
+                "undetected": 0,
+                "harmless": 0,
+                "timeout": 0
+            },
+            "scan_results": {}
+        }
+        return {
+            "status": "Unknown",
+            "message": f"Could not analyze URL: {reason}"
+        }
     except requests.exceptions.RequestException as e:
         print(f"VirusTotal API error for {url}: {str(e)}")
-        return {"status": "Error", "message": f"VirusTotal API error: {str(e)}"}
+        # Handle network or other request errors
+        virustotal_full_results[url] = {
+            "status": "Unknown",
+            "message": "Could not analyze URL: Network or API connectivity issue",
+            "stats": {
+                "malicious": 0,
+                "suspicious": 0,
+                "undetected": 0,
+                "harmless": 0,
+                "timeout": 0
+            },
+            "scan_results": {}
+        }
+        return {
+            "status": "Unknown",
+            "message": "Could not analyze URL: Network or API connectivity issue"
+        }
 
 def get_virustotal_full_result(url: str) -> dict:
     """Retrieve the full VirusTotal scan result for a given URL."""
