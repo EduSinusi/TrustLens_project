@@ -1,0 +1,109 @@
+How the Security Score Works
+The security score is like a grade (from 0 to 100) that tells you how safe or risky a website is based on different checks. Here’s how it’s calculated in simple terms:
+
+Starting Point: Every website starts with a perfect score of 100.
+Checks for Problems: The tool looks at different parts of the website (like its DNS, email setup, or web security) and checks for issues.
+Subtract Points for Risks: If something risky is found, points are taken away from the score. The bigger the risk, the more points are lost:
+Critical Risk: Takes away 50 points (e.g., if the website doesn’t exist).
+High Risk: Takes away 20-30 points (e.g., if it uses an old, unsafe TLS version or is flagged as malicious).
+Medium Risk: Takes away 5-15 points (e.g., if it’s missing some security features like DMARC or has a slow DNS).
+Low Risk: No points lost (everything is good).
+Final Score: After all checks, the score is adjusted to stay between 0 and 100 (it can’t go below 0 or above 100).
+80-100: Very safe (Secure).
+50-79: Okay but needs some fixes (Moderate).
+0-49: Not safe (Insecure).
+Think of it like a health check for a website: the more problems it has, the lower its score gets.
+
+All Features Explained in Simple Words
+Here’s what each feature does, why it matters, and how it affects the score:
+
+DNS Resolution
+What It Does: Checks if the website’s name (like "google.com") turns into an IP address (like "142.250.190.78") and measures how fast it happens.
+Why It Matters: If it doesn’t work, the website might not exist or could be broken. Slow responses might mean trouble.
+Score Impact:
+Fails completely (doesn’t exist): -50 (critical).
+Slow (>500ms): -5 (medium).
+Works fine: No change (low).
+Domain Age
+What It Does: Finds out how old the website is by checking when it was registered.
+Why It Matters: New websites (less than 7 days old) might be scams. Older ones are usually safer.
+Score Impact:
+Less than 7 days: -15 (medium).
+Can’t find age: -10 (medium).
+Older and known: No change (low).
+MX Records
+What It Does: Looks at the email servers the website uses.
+Why It Matters: Trusted email providers (like Google) are safer. Unknown ones might be risky.
+Score Impact:
+Unknown email servers: -10 (medium).
+Trusted or no email: No change (low).
+SPF/DKIM/DMARC (Email Security)
+What It Does: Checks if the website has rules to stop fake emails (SPF, DKIM, DMARC).
+Why It Matters: Without these, someone could pretend to be the website and send scam emails.
+Score Impact:
+No SPF: -10 (medium).
+Weak SPF (lets anyone send): -20 (high).
+No DKIM or DMARC: -10 each (medium).
+All missing: -30 (high).
+All good: No change (low).
+DNSSEC
+What It Does: Checks if the website’s DNS has a special lock (DNSSEC) to prevent hacking.
+Why It Matters: Without it, someone could trick your computer into going to a fake site.
+Score Impact:
+No DNSSEC: -10 (medium).
+Has DNSSEC: No change (low).
+Reverse DNS
+What It Does: Checks if the IP address points back to the website’s name.
+Why It Matters: If they don’t match, it might be a sign of something fishy.
+Score Impact:
+No match or missing: -10 (medium).
+Matches: No change (low).
+HTTP/HTTPS Availability
+What It Does: Tests if the website works over the web and uses HTTPS (secure connection).
+Why It Matters: HTTPS keeps your data safe. No HTTPS or broken web means trouble.
+Score Impact:
+No HTTPS: -15 (medium).
+HTTPS broken (bad certificate): -25 (high).
+HTTPS with no HSTS (extra security): -15 (medium).
+Works fine with HTTPS: No change (low).
+Blacklist Status
+What It Does: Checks if the website’s IP is on a list of bad sites (like spam or malware).
+Why It Matters: Being on a blacklist means it’s likely dangerous.
+Score Impact:
+On blacklist: -30 (high).
+Not listed: No change (low).
+VirusTotal Reputation
+What It Does: Asks VirusTotal if the website is known for bad stuff (needs an API key).
+Why It Matters: It’s like checking with a security expert to see if the site is shady.
+Score Impact:
+Flagged as malicious: -30 (high).
+Suspicious: -15 (medium).
+Clean: No change (low).
+GeoIP Location
+What It Does: Finds out where the website’s server is (city, country, company).
+Why It Matters: Just info to know where it’s hosted—no risk unless something fails.
+Score Impact:
+Always 0 (low), just for info.
+Subdomain Enumeration
+What It Does: Looks for extra website names (like "www.google.com" or "mail.google.com").
+Why It Matters: Shows if there are hidden parts that might need checking.
+Score Impact:
+Always 0 (low), just for info.
+CAA Records
+What It Does: Checks if the website controls who can give it a security certificate.
+Why It Matters: Without this, someone could fake the website’s security.
+Score Impact:
+No CAA: -10 (medium).
+Has CAA: No change (low).
+IPv6 Support
+What It Does: Checks if the website works with the newer internet system (IPv6).
+Why It Matters: Shows if it’s ready for the future—no risk if it’s only IPv4.
+Score Impact:
+Always 0 (low), just for info.
+TLS Versions
+What It Does: Checks the security version used for HTTPS (like TLS 1.2 or 1.3).
+Why It Matters: Old versions (like TLS 1.0) are weak and hackable.
+Score Impact:
+Old version (TLS 1.0/1.1): -20 (high).
+Okay version (TLS 1.2): No change (low).
+Best version (TLS 1.3): No change (low).

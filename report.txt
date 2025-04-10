@@ -1,22 +1,20 @@
-DNS Security Report for: weebly.com
-IP Address: 74.115.51.6
-Domain Age: 45 days
-Security Score: 35 / 100
+DNS Security Report for: google.com
+IP Address: 142.250.199.14
+Domain Age: 20 days
+Security Score: 45 / 100
 
 DNS Resolution [LOW]:
 - Status: Exists
 - Explanation:
    * Domain successfully resolved to an IP address
 Domain Age [LOW]:
-- Status: 45 days
+- Status: 20 days
 - Explanation:
    * Established domain - lower inherent risk
    * Source: SSL Certificate
 MX Records [LOW]:
 - Status: Present
 - Explanation:
-   * Unrecognized MX host: aspmx3.googlemail.com.
-   * Unrecognized MX host: aspmx2.googlemail.com.
    * Uses trusted email provider(s): Google Mail
 SPF Record [LOW]:
 - Status: Present
@@ -32,15 +30,15 @@ DNSSEC [MEDIUM]:
 - Explanation:
    * DNSSEC not configured - vulnerable to DNS spoofing
 Reverse DNS [MEDIUM]:
-- Status: Resolved to www.weebly.com.
+- Status: Resolved to kul09s14-in-f14.1e100.net.
 - Explanation:
    * Reverse DNS does not match domain - potential misconfiguration
    * Recommendation: Ensure PTR record aligns with domain
 HTTP/HTTPS Availability [MEDIUM]:
 - Status: HTTPS OK (Status: 200)
 - Explanation:
-   * Redirected to: https://www.weebly.com/
-   * Certificate issued 45 days ago
+   * Redirected to: https://www.google.com/
+   * Certificate issued 20 days ago
    * HSTS not enabled - no strict HTTPS enforcement
    * Recommendation: Enable HSTS header
 Blacklist Status [LOW]:
@@ -48,27 +46,27 @@ Blacklist Status [LOW]:
 - Explanation:
    * IP not found in common blacklists - good reputation
 GeoIP Location [LOW]:
-- Status: Oakland, United States (ISP: Weebly, Inc.)
+- Status: Kuala Lumpur, Malaysia (ISP: Google LLC)
 - Explanation:
-   * IP located in United States - hosted by Weebly, Inc.
+   * IP located in Malaysia - hosted by Google LLC
 Subdomain Enumeration [LOW]:
-- Status: Found: www.weebly.com, mail.weebly.com, ftp.weebly.com, blog.weebly.com, shop.weebly.com
+- Status: Found: www.google.com, mail.google.com, blog.google.com, shop.google.com
 - Explanation:
-   * Active subdomains detected: 5
+   * Active subdomains detected: 4
    * Recommendation: Verify these are intentional and secure
-CAA Records [MEDIUM]:
-- Status: Not found
+CAA Records [LOW]:
+- Status: Found: 1 records
 - Explanation:
-   * No CAA records - unrestricted certificate issuance
-   * Recommendation: Add CAA records (e.g., '0 issue "letsencrypt.org"')
+   * CAA records present: 0 issue "pki.goog"
+   * Ensures only authorized CAs can issue certificates
 
 Risk Distribution (Visual):
 Critical:  (0)
 High:  (0)
-Medium: ########## (5)
-Low: ############## (7)
+Medium: ######## (4)
+Low: ################ (8)
 
 Risk Summary:
-Critical: 0 | High: 0 | Medium: 5 | Low: 7
+Critical: 0 | High: 0 | Medium: 4 | Low: 8
 
 Overall Assessment: Insecure - Significant security issues detected.
