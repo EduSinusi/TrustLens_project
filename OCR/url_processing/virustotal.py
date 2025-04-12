@@ -1,7 +1,7 @@
 import requests
 import time
 
-VIRUSTOTAL_API_KEY = "8eaa84341d3d89952fb99b87430db4cfc5854782b4e52a9031965aaa1c6d58ec"  # Replace with your valid API key
+VIRUSTOTAL_API_KEY = "8eaa84341d3d89952fb99b87430db4cfc5854782b4e52a9031965aaa1c6d58ec"
 VIRUSTOTAL_URL = "https://www.virustotal.com/api/v3/urls"
 
 virustotal_full_results = {}
@@ -20,13 +20,13 @@ def check_virustotal(url: str) -> dict:
         if submit_response.status_code == 429:
             print(f"VirusTotal rate limit exceeded for {url}")
             return {"status": "Error", "message": "VirusTotal rate limit exceeded. Please try again later."}
-        submit_response.raise_for_status()  # Raises an exception for 4xx/5xx errors
+        submit_response.raise_for_status()
         analysis_id = submit_response.json()["data"]["id"]
         print(f"VirusTotal URL submitted for {url}, analysis ID: {analysis_id}")
 
         # Step 2: Poll for analysis results until complete
         analysis_url = f"https://www.virustotal.com/api/v3/analyses/{analysis_id}"
-        retry_interval = 5  # 5 seconds between retries
+        retry_interval = 5
         while True:
             analysis_response = requests.get(analysis_url, headers=headers, timeout=10)
             if analysis_response.status_code == 429:
@@ -43,13 +43,16 @@ def check_virustotal(url: str) -> dict:
                     harmless = stats.get("harmless", 0)
                     timeout = stats.get("timeout", 0)
 
-                    # Fetch detailed scan results (per-engine results)
+                    # Fetch detailed scan results
                     scan_results = result["data"]["attributes"].get("results", {})
 
-                    # Refined status logic
-                    if malicious > 0 or suspicious > 0:
+                    # Updated status logic
+                    if malicious > 0:
                         status = "Unsafe"
                         message = f"Malicious detections: {malicious}, Suspicious: {suspicious}"
+                    elif suspicious > 0 and malicious == 0:
+                        status = "Potentially Unsafe"
+                        message = f"Suspicious detections: {suspicious}, no malicious findings"
                     elif timeout > 0 and (undetected + harmless == 0):
                         status = "Unknown"
                         message = "Analysis timed out with no conclusive results"
@@ -57,7 +60,7 @@ def check_virustotal(url: str) -> dict:
                         status = "Safe"
                         message = "No malicious or suspicious detections"
 
-                    # Store full result, including per-engine results
+                    # Store full result
                     virustotal_full_results[url] = {
                         "status": status,
                         "message": message,
@@ -68,7 +71,7 @@ def check_virustotal(url: str) -> dict:
                             "harmless": harmless,
                             "timeout": timeout
                         },
-                        "scan_results": scan_results  # Store detailed per-engine results
+                        "scan_results": scan_results
                     }
                     print(f"VirusTotal scan completed for {url}: {status} ({message})")
                     return {"status": status, "message": message}
@@ -81,7 +84,6 @@ def check_virustotal(url: str) -> dict:
 
     except requests.exceptions.HTTPError as e:
         print(f"VirusTotal HTTP error for {url}: {str(e)}")
-        # Handle 400 Bad Request and other HTTP errors by returning "Unknown"
         error_message = str(e).lower()
         if "400 client error" in error_message:
             reason = "Invalid request format (e.g., malformed URL or missing parameters)"
@@ -91,42 +93,22 @@ def check_virustotal(url: str) -> dict:
             reason = "Access forbidden (check API key permissions)"
         else:
             reason = "Unexpected HTTP error occurred"
-        # Store a minimal full result for consistency
         virustotal_full_results[url] = {
             "status": "Unknown",
             "message": f"Could not analyze URL: {reason}",
-            "stats": {
-                "malicious": 0,
-                "suspicious": 0,
-                "undetected": 0,
-                "harmless": 0,
-                "timeout": 0
-            },
+            "stats": {"malicious": 0, "suspicious": 0, "undetected": 0, "harmless": 0, "timeout": 0},
             "scan_results": {}
         }
-        return {
-            "status": "Unknown",
-            "message": f"Could not analyze URL: {reason}"
-        }
+        return {"status": "Unknown", "message": f"Could not analyze URL: {reason}"}
     except requests.exceptions.RequestException as e:
         print(f"VirusTotal API error for {url}: {str(e)}")
-        # Handle network or other request errors
         virustotal_full_results[url] = {
             "status": "Unknown",
             "message": "Could not analyze URL: Network or API connectivity issue",
-            "stats": {
-                "malicious": 0,
-                "suspicious": 0,
-                "undetected": 0,
-                "harmless": 0,
-                "timeout": 0
-            },
+            "stats": {"malicious": 0, "suspicious": 0, "undetected": 0, "harmless": 0, "timeout": 0},
             "scan_results": {}
         }
-        return {
-            "status": "Unknown",
-            "message": "Could not analyze URL: Network or API connectivity issue"
-        }
+        return {"status": "Unknown", "message": "Could not analyze URL: Network or API connectivity issue"}
 
 def get_virustotal_full_result(url: str) -> dict:
     """Retrieve the full VirusTotal scan result for a given URL."""
@@ -134,7 +116,6 @@ def get_virustotal_full_result(url: str) -> dict:
         return virustotal_full_results[url]
     return {"error": "Full result not found. Please scan the URL first."}
 
-# Test the function with a known URL
 if __name__ == "__main__":
     test_url = "https://www.google.com"
     result = check_virustotal(test_url)

@@ -15,14 +15,14 @@ def block_in_hosts(domain):
             # Check if the domain is already blocked (with or without www)
             if f"{REDIRECT_IP} {domain}" in content or f"{REDIRECT_IP} www.{domain}" in content:
                 print(f"{domain} is already blocked in the hosts file.")
-                return True, "already_blocked"
+                return True, "Blocked"
 
         # Add the domain to the hosts file
         with open(HOSTS_FILE, "a") as file:
             file.write(f"\n{REDIRECT_IP} {domain}\n")
             file.write(f"{REDIRECT_IP} www.{domain}\n")  # Also block the www version
             print(f"Blocked {domain} and www.{domain} in the hosts file.")
-        return True, "blocked"
+        return True, "Blocked"
     except PermissionError:
         print("Permission denied: Run this script as an administrator to modify the hosts file.")
         return False, "permission_denied"

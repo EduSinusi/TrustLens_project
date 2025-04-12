@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import UrlAnalysis from "./Components/UrlAnalysis";
+import { FaUpload, FaRedo, FaCircleNotch } from "react-icons/fa";
 
 const UrlSearchBar = () => {
   const [url, setUrl] = useState("");
@@ -158,12 +159,17 @@ const UrlSearchBar = () => {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+            className={`flex-1 py-2 px-2 bg-gradient-to-t from-blue-600 to-blue-400 text-white rounded-md w-full  flex items-center justify-center shadow-md hover:from-blue-500 hover:to-blue-400 transition-all duration-300 text-md ${
               loading
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-gradient-to-t from-blue-600 to-blue-400 hover:bg-sky-700"
+                ? "opacity-50 cursor-not-allowed"
+                : "flex items-center justify-center bg-gradient-to-t from-blue-600 to-blue-400 hover:bg-sky-800"
             } transition-colors`}
           >
+            {loading ? (
+              <FaCircleNotch className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <FaUpload className="h-5 w-5 mr-2" />
+            )}
             {loading ? "Scanning..." : "Scan URL"}
           </button>
         </form>
@@ -178,7 +184,7 @@ const UrlSearchBar = () => {
               safetyStatus={result.safetyStatus}
               isAnalysisOpen={isAnalysisOpen}
               toggleAnalysis={toggleAnalysis}
-              isLoading={loading}
+              loading={loading}
             />
           </div>
         )}

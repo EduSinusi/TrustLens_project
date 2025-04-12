@@ -6,7 +6,7 @@ const UrlResult = ({ extractedUrl, safetyStatus }) => {
   const displayStatus = safetyStatus.overall === "URL Not Exist" ? "URL Not Exist" : safetyStatus.overall;
 
   return (
-    <div className="px-4 py-4 bg-blue-100 border-t border-blue-200">
+    <div className="px-3 py-3 bg-blue-100 rounded-lg border-t border-blue-200">
       <div className="flex mb-2">
         <div className="bg-gradient-to-t from-blue-200 to-blue-300 text-blue-900 px-4 py-1 rounded-l-md text-lg font-semibold shadow-sm">
           Extracted URL

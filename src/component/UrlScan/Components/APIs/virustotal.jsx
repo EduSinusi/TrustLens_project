@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import ApiInfoBubble from "../ApiInfoBubble";
+import InfoBubble from "../InfoBubble";
 import VirusTotalFullResultPopup from "./popupvirustotal";
 
 const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
@@ -14,17 +14,25 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
       : message;
   };
 
-  const status = safetyStatus.details.virustotal.status;
-  const message = safetyStatus.details.virustotal.message;
+  // Check if virustotal data exists
+  const virustotal = safetyStatus.details.virustotal || {};
+  const status = virustotal.status || "Not Scanned";
+  const message = virustotal.message || "VirusTotal scan was not performed.";
   const isUnsafe = status === "Unsafe";
+  const isPotentiallyUnsafe = status === "Potentially Unsafe";
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-200">
-      {/* Header with Icon and API Info Bubble */}
       <div className="flex items-center mb-3">
         <div
           className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 ${
-            status === "Safe" ? "bg-green-500" : "bg-red-500"
+            status === "Safe"
+              ? "bg-green-500"
+              : status === "Potentially Unsafe"
+              ? "bg-yellow-500"
+              : status === "Not Scanned"
+              ? "bg-gray-500"
+              : "bg-red-500"
           } text-white`}
         >
           {status === "Safe" ? (
@@ -37,6 +45,19 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
               <path
                 fillRule="evenodd"
                 d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+          ) : status === "Not Scanned" ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                 clipRule="evenodd"
               />
             </svg>
@@ -56,56 +77,66 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
           )}
         </div>
         <span className="font-medium text-gray-800">VirusTotal</span>
-        <ApiInfoBubble apiName="VirusTotal" />
+        <InfoBubble apiName="VirusTotal" />
       </div>
 
-      {/* Content */}
       <div className="ml-8 space-y-3">
-        {isUnsafe && message ? (
-          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 shadow-sm">
+        {(isUnsafe || isPotentiallyUnsafe) && message ? (
+          <div className="border border-gray-200 rounded-lg p-3 w-fit bg-gray-50 shadow-sm">
             <p className="text-sm text-gray-600">
               <span className="font-medium">Malicious Detections:</span>{" "}
               <span className="text-red-600 font-medium">
-                {message.match(/Malicious detections: (\d+)/)?.[1] || "N/A"}
+                {message.match(/Malicious detections: (\d+)/)?.[1] || "0"}
               </span>
             </p>
             <p className="text-sm text-gray-600 mt-2">
               <span className="font-medium">Suspicious Detections:</span>{" "}
               <span className="text-yellow-600 font-medium">
-                {message.match(/Suspicious: (\d+)/)?.[1] || "0"}
+                {message.match(/Suspicious detections?: (\d+)/)?.[1] ||
+                  message.match(/Suspicious: (\d+)/)?.[1] ||
+                  "0"}
               </span>
             </p>
           </div>
         ) : (
-          <p className="text-sm text-gray-600">
-            {formatMessage(message)}
-          </p>
+          <p className="text-sm text-gray-600">{formatMessage(message)}</p>
         )}
 
-        {/* Safety Status */}
         <p className="text-gray-700">
           Safety Status:{" "}
           <span
             className={`font-medium ${
-              status === "Safe" ? "text-green-600" : "text-red-600"
+              status === "Safe"
+                ? "text-green-600"
+                : status === "Potentially Unsafe"
+                ? "text-yellow-600"
+                : status === "Not Scanned"
+                ? "text-gray-600"
+                : "text-red-600"
             }`}
           >
-            {status === "Safe" ? "Safe" : "Unsafe"}
+            {status === "Safe"
+              ? "Safe"
+              : status === "Potentially Unsafe"
+              ? "Potentially Unsafe"
+              : status === "Not Scanned"
+              ? "Not Scanned"
+              : "Unsafe"}
           </span>
         </p>
 
-        {/* Link to Full Report */}
-        <div className="text-xs text-blue-600">
-          <button
-            onClick={() => setIsPopupOpen(true)}
-            className="hover:underline focus:outline-none"
-          >
-            Click here to view full report &gt;&gt;
-          </button>
-        </div>
+        {status !== "Not Scanned" && (
+          <div className="text-xs text-blue-600">
+            <button
+              onClick={() => setIsPopupOpen(true)}
+              className="hover:underline focus:outline-none"
+            >
+              Click here to view full report &gt;&gt;
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Full Report Popup */}
       <VirusTotalFullResultPopup
         isOpen={isPopupOpen}
         onClose={() => setIsPopupOpen(false)}

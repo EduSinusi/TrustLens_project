@@ -679,7 +679,7 @@ class DNSSecurityAnalyzer:
 
         return results
 
-def check_url_info(url: str) -> dict:
+def check_domain_security(url: str) -> dict:
     """Simplified function to check URL info using DNSSecurityAnalyzer."""
     analyzer = DNSSecurityAnalyzer(timeout=10)
     result = analyzer.enhanced_dns_check(url)
@@ -717,5 +717,5 @@ def check_url_info(url: str) -> dict:
     }
 
 if __name__ == "__main__":
-    result = check_url_info("https://google.com")
+    result = check_domain_security("https://google.com")
     print(json.dumps(result, indent=2))

@@ -1,7 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 from .virustotal import check_virustotal, get_virustotal_full_result
-from .UrlSecurityCheck import check_url_info
+from .domaincheck import check_domain_security
 from website_blocker import block_unsafe_website
 import time
 
@@ -44,59 +44,44 @@ def check_url_in_firestore(url: str) -> tuple[dict, bool]:
         return {"overall": "Error", "details": {"general": f"Firestore error: {str(e)}"}}, False
 
 def evaluate_url(url: str) -> dict:
-    """Evaluate URL using VirusTotal and TrustLens URL Security Check."""
+    """Evaluate URL using TrustLens URL Security Check first, then VirusTotal if domain exists."""
     print(f"Evaluating URL: {url}")
     
-    # Get VirusTotal result (no "Pending" status, will wait until complete)
+    domain_sec_result = check_domain_security(url)
+
+    if domain_sec_result["status"] == "Non-existent":
+        print(f"Domain {url} is non-existent, skipping VirusTotal scan.")
+        return {
+            "overall": "URL does not exist",
+            "details": {
+                "url_info": domain_sec_result
+            }
+        }
+
     virustotal_result = check_virustotal(url)
     virustotal_full_result = get_virustotal_full_result(url)
 
-    # If the full result is not available, use a default
     if "error" in virustotal_full_result:
         virustotal_full_result = {
             "status": virustotal_result["status"],
             "message": virustotal_result["message"],
-            "stats": {
-                "malicious": 0,
-                "suspicious": 0,
-                "undetected": 0,
-                "harmless": 0,
-                "timeout": 0
-            },
+            "stats": {"malicious": 0, "suspicious": 0, "undetected": 0, "harmless": 0, "timeout": 0},
             "scan_results": {}
-        }
-
-    # Get URLSecurityCheck result
-    url_info_result = check_url_info(url)
-
-    # If domain does not exist, return immediately
-    if url_info_result["status"] == "Non-existent":
-        return {
-            "overall": "URL does not exist",
-            "details": {
-                "virustotal": virustotal_full_result,
-                "url_info": url_info_result
-            }
         }
 
     results = {
         "virustotal": virustotal_full_result,
-        "url_info": url_info_result
+        "url_info": domain_sec_result
     }
     
-    # Log the results from each service for debugging
     print(f"Evaluation Results for {url}:")
     for service, result in results.items():
         print(f"{service}: {result}")
 
-    # Check if TrustLens determined the domain is non-existent
-    url_info_status = url_info_result["status"]
-    if url_info_status in ["Non-existent", "Unknown"]:
+    url_info_status = domain_sec_result["status"]
+    if url_info_status == "Unknown":
         overall = "Unknown"
-        message = "Domain does not exist in DNS"
-        # Ensure VirusTotal result is not included
-        if "virustotal" in results:
-            del results["virustotal"]
+        message = "Domain status is inconclusive from TrustLens Domain Security Check"
         safety_status = {
             "overall": overall,
             "message": message,
@@ -105,41 +90,55 @@ def evaluate_url(url: str) -> dict:
         print(f"Evaluated Safety Status: {safety_status}")
         return safety_status
 
-    # If domain exists, proceed with hybrid decision-making
     virustotal_status = virustotal_full_result["status"]
-    url_info_security_score = url_info_result["details"]["security_score"]
+    url_info_security_score = domain_sec_result["details"]["security_score"]
 
-    # Rule-based decision making
+    # Updated rule-based decision making
     if virustotal_status == "Unsafe" and url_info_status == "Unsafe":
         overall = "Unsafe"
-        message = "Detected as unsafe by VirusTotal or TrustLens URL Security Check"
+        message = "Detected as unsafe by VirusTotal or TrustLens Domain Security Check"
     elif virustotal_status == "Safe" and url_info_status == "Unsafe":
-        overall = "Safe"
-        message = "VirusTotal indicates safe, but TrustLens URL Security Check found potential risks"
+        overall = "Unsafe"
+        message = "TrustLens Domain Security Check detected as unsafe but VirusTotal indicates safe"
+    elif virustotal_status == "Unsafe" and url_info_status == "Safe":
+        overall = "Unsafe"
+        message = "VirusTotal detected as unsafe but TrustLens Domain Security Check indicates as safe"
     elif virustotal_status == "Safe" and url_info_status == "Safe":
         overall = "Safe"
-        message = "Both VirusTotal and TrustLens URL Security Check indicate the URL is safe"
+        message = "Both VirusTotal and TrustLens Domain Security Check indicate the URL is safe"
+    elif virustotal_status == "Potentially Unsafe" and url_info_status == "Safe":
+        overall = "Potentially Unsafe"
+        message = "VirusTotal found suspicious detections, but TrustLens indicates safe"
     elif virustotal_status == "Safe" and url_info_status == "Potentially Unsafe":
         overall = "Safe"
-        message = "VirusTotal indicates safe, but TrustLens URL Security Check found potential risks"
+        message = "VirusTotal indicates safe, but TrustLens Domain Security Check found potential risks"
     elif virustotal_status == "Unsafe" and url_info_status == "Potentially Unsafe":
         overall = "Unsafe"
-        message = "Detected as unsafe by VirusTotal, and TrustLens URL Security Check also found potential risks"
+        message = "Detected as unsafe by VirusTotal, and TrustLens Domain Security Check also found potential risks"
+    elif virustotal_status == "Potentially Unsafe" and url_info_status == "Potentially Unsafe":
+        overall = "Potentially Unsafe"
+        message = "Both VirusTotal and TrustLens Domain Security Check found potential risks"
+    elif virustotal_status == "Potentially Unsafe" and url_info_status == "Unsafe":
+        overall = "Unsafe"
+        message = "VirusTotal found suspicious detections, and TrustLens indicates unsafe"
     elif virustotal_status == "Unknown" and url_info_status == "Safe":
         overall = "Unknown"
-        message = "VirusTotal is inconclusive, but TrustLens URL Security Check indicates the URL is safe"
+        message = "VirusTotal is inconclusive, but TrustLens Domain Security Check indicates the URL is safe"
     elif virustotal_status == "Unknown" and url_info_status == "Potentially Unsafe":
         overall = "Unknown"
-        message = "VirusTotal is inconclusive, and TrustLens URL Security Check found potential risks"
+        message = "VirusTotal is inconclusive, and TrustLens Domain Security Check found potential risks"
     elif virustotal_status == "Safe" and url_info_status == "Unknown":
         overall = "Unknown"
-        message = "TrustLens URL Security Check is inconclusive, but VirusTotal indicates the URL is safe"
+        message = "TrustLens Domain Security Check is inconclusive, but VirusTotal indicates the URL is safe"
     elif virustotal_status == "Unknown" and url_info_status == "Unknown":
         overall = "Unknown"
-        message = "Both VirusTotal and TrustLens URL Security Check are inconclusive"
+        message = "Both VirusTotal and TrustLens Domain Security Check are inconclusive"
+    elif virustotal_status == "Potentially Unsafe" and url_info_status == "Unknown":
+        overall = "Unknown"
+        message = "VirusTotal found suspicious detections, but TrustLens is inconclusive"
     else:
         overall = "Potentially Unsafe"
-        message = "Mixed signals from VirusTotal and TrustLens URL Security Check"
+        message = "Mixed signals from VirusTotal and TrustLens Domain Security Check"
 
     safety_status = {
         "overall": overall,
@@ -219,7 +218,7 @@ def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str]:
     
     while safety_status["overall"] == "Unknown" and attempt < max_attempts:
         print(f"Status is 'Unknown' for {url}, re-evaluating (attempt {attempt + 1}/{max_attempts})...")
-        time.sleep(10)  # Add a delay to give the API time to process
+        time.sleep(10)
         safety_status = evaluate_url(url)
         store_url_in_firestore(url, safety_status)
         attempt += 1
@@ -231,9 +230,19 @@ def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str]:
             block_status = "already_blocked"
         else:
             blocked, status = block_unsafe_website(url)
+            block_status = status if status else "error"  # Fallback to "error" if status is None
             if blocked:
                 store_blocked_website_in_firestore(url, safety_status)
-            block_status = status
+        
+        # Attach block_status to safety_status
+        if not safety_status.get("details"):
+            safety_status["details"] = {}
+        if not safety_status["details"].get("url_info"):
+            safety_status["details"]["url_info"] = {}
+        safety_status["details"]["url_info"]["block_status"] = block_status
+    
+    # Update Firestore with the modified safety_status
+    store_url_in_firestore(url, safety_status)
     
     return safety_status, block_status
 

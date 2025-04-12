@@ -20,6 +20,7 @@ from url_processing.virustotal import get_virustotal_full_result, check_virustot
 # Global variables
 webcam_running = False
 scanning_active = False
+evaluating_url = False
 current_frame = None
 latest_url = None
 latest_safety_status = None
@@ -50,73 +51,51 @@ def initialize_webcam(camera_index, max_retries=3):
     return None
 
 def generate_frames(camera_index=0):
-    global current_frame, webcam_running, scanning_active, latest_url, latest_safety_status, latest_block_status, webcam_error
-    cap = initialize_webcam(camera_index)
-    if not cap and camera_index == 0:
-        print("Laptop webcam (index 0) not available, falling back to external webcam (index 1)")
-        cap = initialize_webcam(1)
-        if cap:
-            global current_camera_index
-            current_camera_index = 1
+  global current_frame, webcam_running, scanning_active, latest_url, latest_safety_status, latest_block_status, webcam_error, evaluating_url
+  cap = initialize_webcam(camera_index)
+  if not cap:
+    webcam_error = "No webcam available"
+    current_frame = create_error_frame(webcam_error)
+    webcam_running = False
+    return
 
-    if not cap:
-        webcam_error = "No webcam available"
+  webcam_running = True
+  try:
+    while webcam_running:
+      ret, frame = cap.read()
+      if not ret:
+        webcam_error = f"Failed to capture frame from webcam {camera_index}"
         current_frame = create_error_frame(webcam_error)
-        webcam_running = False
-        return
+        break
 
-    webcam_running = True
-    try:
-        while webcam_running:
-            ret, frame = cap.read()
-            if not ret:
-                webcam_error = f"Failed to capture frame from webcam {camera_index}"
-                current_frame = create_error_frame(webcam_error)
-                break
+      if scanning_active:
+        latest_url = None
+        latest_safety_status = None
+        latest_block_status = None
+        
+        url = extract_url_from_qr_code(frame)
+        if not url:
+          processed_frame = preprocess_image(frame)
+          url = extract_url_from_qr_code(processed_frame) or extract_url_from_text(processed_frame)
 
-            if scanning_active:
-                latest_url = None
-                latest_safety_status = None
-                latest_block_status = None
-                
-                url = extract_url_from_qr_code(frame)
-                if url:
-                    print(f"QR Code detected: {url}")
-                    latest_url = url
-                    latest_safety_status, latest_block_status = process_and_block_url(url)
-                    print(f"Processed URL: {url} - Safety: {latest_safety_status}, Block Status: {latest_block_status}")
-                    scanning_active = False
-                    cv2.putText(frame, f"URL: {url}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                else:
-                    processed_frame = preprocess_image(frame)
-                    url = extract_url_from_qr_code(processed_frame)
-                    if url:
-                        print(f"QR Code detected (preprocessed): {url}")
-                        latest_url = url
-                        latest_safety_status, latest_block_status = process_and_block_url(url)
-                        print(f"Processed URL: {url} - Safety: {latest_safety_status}, Block Status: {latest_block_status}")
-                        scanning_active = False
-                        cv2.putText(frame, f"URL: {url}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                    else:
-                        url = extract_url_from_text(processed_frame)
-                        if url:
-                            print(f"Text URL detected: {url}")
-                            latest_url = url
-                            latest_safety_status, latest_block_status = process_and_block_url(url)
-                            print(f"Processed URL: {url} - Safety: {latest_safety_status}, Block Status: {latest_block_status}")
-                            scanning_active = False
-                            cv2.putText(frame, f"URL: {url}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                        else:
-                            print("No QR code or URL detected in this frame")
+        if url:
+          print(f"URL detected: {url}")
+          latest_url = url
+          evaluating_url = True  # Set evaluating flag
+          latest_safety_status, latest_block_status = process_and_block_url(url)
+          evaluating_url = False  # Reset after evaluation
+          scanning_active = False
+          cv2.putText(frame, f"URL: {url}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-            current_frame = frame.copy()
-            webcam_error = None
-            cv2.waitKey(50)
-    finally:
-        cap.release()
-        webcam_running = False
-        scanning_active = False  # Reset scanning_active when webcam stops
-        print("Webcam released")
+      current_frame = frame.copy()
+      webcam_error = None
+      cv2.waitKey(50)
+  finally:
+    cap.release()
+    webcam_running = False
+    scanning_active = False
+    evaluating_url = False
+    print("Webcam released")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -220,12 +199,14 @@ async def get_url():
         return {
             "url": latest_url,
             "safety_status": latest_safety_status,
-            "block_status": latest_block_status
+            "block_status": latest_block_status,
+            "evaluating": evaluating_url
         }
     return {
         "url": "",
         "safety_status": {"overall": "No URL detected yet", "details": {}},
-        "block_status": None
+        "block_status": None,
+        "evaluating": evaluating_url
     }
 
 @app.get("/get_webcam_status")

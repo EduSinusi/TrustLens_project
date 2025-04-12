@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
+import InfoBubble from "../InfoBubble";
 
 const TrustLensSecurityFullReportPopup = ({
   isOpen,
@@ -63,7 +64,7 @@ const TrustLensSecurityFullReportPopup = ({
         {/* Fixed Close Button */}
         <button
           onClick={onClose}
-          className="fixed top-6 right-97 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors z-50 bg-white rounded-full p-2 shadow-md"
+          className="fixed top-6 right-6 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors z-50 bg-white rounded-full p-2 shadow-md"
           aria-label="Close popup"
         >
           <svg
@@ -86,9 +87,12 @@ const TrustLensSecurityFullReportPopup = ({
         <div className="space-y-6">
           {/* Domain Name Section */}
           <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h4 className="text-lg font-semibold text-gray-700 mb-3">
-              Domain Information
-            </h4>
+            <div className="flex items-center mb-3">
+              <h4 className="text-lg font-semibold text-gray-700">
+                Domain Information
+              </h4>
+              <InfoBubble apiName="Domain Name" />
+            </div>
             <div className="bg-white p-3 rounded-md shadow-sm">
               <p className="text-sm text-gray-600">Domain Name</p>
               <p className="text-lg font-medium text-gray-800">
@@ -99,9 +103,12 @@ const TrustLensSecurityFullReportPopup = ({
 
           {/* DNS Resolution Section */}
           <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h4 className="text-lg font-semibold text-gray-700 mb-3">
-              DNS Resolution Result
-            </h4>
+            <div className="flex items-center mb-3">
+              <h4 className="text-lg font-semibold text-gray-700">
+                DNS Resolution Result
+              </h4>
+              <InfoBubble apiName="DNS Resolution Result" />
+            </div>
             <div
               className={`p-4 rounded-lg shadow-sm border ${
                 dnsResolutionResult.status === "Non-existent"
@@ -133,24 +140,35 @@ const TrustLensSecurityFullReportPopup = ({
             <>
               {/* Overview Section */}
               <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                <h4 className="text-lg font-semibold text-gray-700 mb-3">
-                  Overview
-                </h4>
+                <div className="flex items-center mb-3">
+                  <h4 className="text-lg font-semibold text-gray-700">
+                    Overview
+                  </h4>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white p-3 rounded-md shadow-sm">
-                    <p className="text-sm text-gray-600">IPv4 Address</p>
+                    <div className="flex items-center">
+                      <p className="text-sm text-gray-600">IPv4 Address</p>
+                      <InfoBubble apiName="IPv4 Address" />
+                    </div>
                     <p className="text-lg font-medium text-gray-800">
                       {ip || "N/A"}
                     </p>
                   </div>
                   <div className="bg-white p-3 rounded-md shadow-sm">
-                    <p className="text-sm text-gray-600">IPv6 Addresses</p>
+                    <div className="flex items-center">
+                      <p className="text-sm text-gray-600">IPv6 Addresses</p>
+                      <InfoBubble apiName="IPv6 Addresses" />
+                    </div>
                     <p className="text-lg font-medium text-gray-800">
                       {ipv6?.length > 0 ? ipv6.join(", ") : "N/A"}
                     </p>
                   </div>
                   <div className="bg-white p-3 rounded-md shadow-sm">
-                    <p className="text-sm text-gray-600">Domain Age</p>
+                    <div className="flex items-center">
+                      <p className="text-sm text-gray-600">Domain Age</p>
+                      <InfoBubble apiName="Domain Age" />
+                    </div>
                     <p className="text-lg font-medium text-gray-800">
                       {age_info?.days
                         ? `${age_info.days} days (${age_info.source}${
@@ -164,9 +182,12 @@ const TrustLensSecurityFullReportPopup = ({
 
               {/* Risk Summary Section */}
               <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                <h4 className="text-lg font-semibold text-gray-700 mb-3">
-                  Risk Summary
-                </h4>
+                <div className="flex items-center mb-3">
+                  <h4 className="text-lg font-semibold text-gray-700">
+                    Risk Summary
+                  </h4>
+                  <InfoBubble apiName="Risk Summary" />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white p-3 rounded-md shadow-sm">
                     <p className="text-sm text-gray-600">Critical Risks</p>
@@ -197,20 +218,25 @@ const TrustLensSecurityFullReportPopup = ({
 
               {/* Security Score Section */}
               <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                <h4 className="text-lg font-semibold text-gray-700 mb-3">
-                  Security Score
-                </h4>
+                <div className="flex items-center mb-3">
+                  <h4 className="text-lg font-semibold text-gray-700">
+                    Security Score
+                  </h4>
+                  <InfoBubble apiName="Security Score" />
+                </div>
                 <div className="flex items-center">
                   <span
                     className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
                       security_score >= 25
                         ? "bg-green-100 text-green-700"
-                        : security_score < 25
+                        : security_score >= 10
                         ? "bg-yellow-100 text-yellow-700"
                         : "bg-red-100 text-red-700"
                     }`}
                   >
-                    {security_score || "N/A"}
+                    {security_score !== null && security_score !== undefined
+                      ? security_score
+                      : "N/A"}
                   </span>
                 </div>
               </div>
@@ -219,9 +245,11 @@ const TrustLensSecurityFullReportPopup = ({
               {sortedChecks && sortedChecks.length > 0 && (
                 <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-lg font-semibold text-gray-700">
-                      Detailed Security Checks
-                    </h4>
+                    <div className="flex items-center">
+                      <h4 className="text-lg font-semibold text-gray-700">
+                        Detailed Security Checks
+                      </h4>
+                    </div>
                     <button
                       onClick={() => setIsChecksOpen(!isChecksOpen)}
                       className="text-blue-600 hover:underline focus:outline-none text-sm flex items-center"
@@ -246,9 +274,9 @@ const TrustLensSecurityFullReportPopup = ({
                     </button>
                   </div>
                   {isChecksOpen && (
-                    <div className="max-h-100 overflow-y-auto">
+                    <div className="max-h-96 overflow-y-auto">
                       <table className="min-w-full bg-white rounded-lg shadow-sm border border-gray-200">
-                        <thead>
+                        <thead className="bg-gray-100 text-gray-700 text-sm font-semibold sticky top-[-1px] z-20">
                           <tr className="bg-gray-100 text-gray-700 text-sm font-semibold">
                             <th className="py-3 px-4 text-left w-28">
                               Security Risk
@@ -293,7 +321,10 @@ const TrustLensSecurityFullReportPopup = ({
                                 </span>
                               </td>
                               <td className="py-3 px-4 text-gray-800 font-medium w-36">
-                                {check.check}
+                                <div className="flex items-center space-x-1">
+                                  <span>{check.check}</span>
+                                  <InfoBubble apiName={check.check} />
+                                </div>
                               </td>
                               <td className="py-3 px-4 text-gray-600 w-28">
                                 {check.status}

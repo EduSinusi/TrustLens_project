@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import UrlResult from "./Components/UrlResult"; // Import UrlResult component
-import UrlAnalysis from "./Components/UrlAnalysis"; // Import UrlAnalysis component
+import UrlResult from "./Components/UrlResult";
+import UrlAnalysis from "./Components/UrlAnalysis";
+import { FaUpload, FaRedo, FaCircleNotch } from "react-icons/fa";
 
 const ImageExtract = () => {
   const [image, setImage] = useState(null);
@@ -20,7 +21,6 @@ const ImageExtract = () => {
   const navMenuRef = useRef(null);
   const navigate = useNavigate();
 
-  // Handle click outside to close the dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (navMenuRef.current && !navMenuRef.current.contains(event.target)) {
@@ -111,19 +111,20 @@ const ImageExtract = () => {
   };
 
   return (
-    <div className="h-screen bg-gray-100 flex flex-col items-center justify-start p-15">
-      <div className="relative flex items-center justify-center w-full max-w-4xl">
-        <div ref={navMenuRef}>
+    <div className="max-h-screen">
+      {/* Heading with Dropdown */}
+      <div className="flex items-start justify-start mb-8 ml-24 mt-5">
+        <div className="relative" ref={navMenuRef}>
           <button
             onClick={toggleNavMenu}
-            className="flex items-center px-2 py-1 rounded-md hover:bg-gray-300 transition-all"
+            className="flex items-center px-4 py-2 rounded-md hover:bg-gray-100 transition-all duration-300"
           >
-            <h1 className="text-3xl font-bold ml-2 text-gray-800">
+            <h1 className="text-3xl font-bold text-gray-800">
               TrustLens Image Scan
             </h1>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className={`h-5 w-5 ml-3 transition-transform duration-300 ${
+              className={`h-5 w-5 ml-3 text-gray-600 transition-transform duration-300 ${
                 isNavMenuOpen ? "rotate-180" : ""
               }`}
               fill="none"
@@ -139,13 +140,13 @@ const ImageExtract = () => {
             </svg>
           </button>
           {isNavMenuOpen && (
-            <div className="absolute top-13 left-146 bg-gray-800 text-white rounded-md shadow-lg border border-gray-700 z-50 w-48">
+            <div className="absolute top-13 left-78 bg-gray-800 text-white rounded-md shadow-lg border border-gray-700 z-50 w-48">
               <button
                 onClick={() => {
                   navigate("/url-scan/search");
                   setIsNavMenuOpen(false);
                 }}
-                className="block w-full text-left px-4 py-2 text-md font-semibold hover:bg-gray-700"
+                className="block w-full text-left px-4 py-2 text-md font-semibold hover:bg-gray-700 transition-all duration-200"
               >
                 URL Search
               </button>
@@ -154,7 +155,7 @@ const ImageExtract = () => {
                   navigate("/url-scan/webcam");
                   setIsNavMenuOpen(false);
                 }}
-                className="block w-full text-left px-4 py-2 text-md font-semibold hover:bg-gray-700"
+                className="block w-full text-left px-4 py-2 text-md font-semibold hover:bg-gray-700 transition-all duration-200"
               >
                 Live Scan
               </button>
@@ -163,80 +164,121 @@ const ImageExtract = () => {
         </div>
       </div>
 
-      <div className="w-full max-w-4xl mt-5">
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <div className="mb-4">
+      {/* Main Content */}
+      <div className="flex gap-20 items-start max-w-[1500px] mx-auto pb-10">
+        {/* Left Panel - Upload */}
+        <div className="w-1/2 rounded-lg shadow-lg p-5">
+          {/* Upload Section */}
+          <div className="mb-6">
             <label
-              className="block text-gray-700 text-md font-bold mb-2"
+              className="block text-gray-800 text-xl ml-2 font-bold mb-5"
               htmlFor="image-upload"
             >
-              Upload an Image to Scan for URLs
+              UPLOAD IMAGE
             </label>
             <input
               type="file"
               id="image-upload"
               accept="image/*"
               onChange={handleImageChange}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="block w-full mb-9 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-800 hover:file:bg-blue-200 transition-all duration-200"
             />
           </div>
+
+          {/* Preview - No Spinner Here */}
           {preview && (
-            <div className="mb-4 items-center justify-center flex-col flex">
-              <h2 className="text-lg font-bold mb-5">Image Preview</h2>
+            <div className="mb-10 flex flex-col items-center">
+              <h2 className="text-xl font-bold text-gray-800 mb-3">
+                Image Preview
+              </h2>
               <img
                 src={preview}
                 alt="Preview"
-                className="w-[50%] h-auto rounded-lg"
+                className="w-[50%] h-auto rounded-lg shadow-md"
               />
             </div>
           )}
-          <div className="mb-4 mt-5">
+          {extractedUrl && (
+            <div className="justify-start mt-1 pb-6 max-w-[850px] mx-auto">
+              <div className="p-2">
+                <UrlResult
+                  extractedUrl={extractedUrl}
+                  safetyStatus={safetyStatus}
+                />
+              </div>
+            </div>
+          )}
+          {/* Controls */}
+          <div className="flex gap-4">
             <button
               onClick={handleImageUpload}
               disabled={loading || !image}
-              className={`bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 mr-2 ${
+              className={`flex-1 bg-gradient-to-t from-blue-600 to-blue-400  text-white rounded-md py-2 px-4 flex items-center justify-center shadow-md hover:from-blue-500 hover:to-blue-400 transition-all duration-300 ${
                 loading || !image ? "opacity-50 cursor-not-allowed" : ""
               }`}
             >
-              {loading ? "Processing..." : "Scan Image"}
+              {loading ? (
+                <FaCircleNotch className="h-5 w-5 mr-2 animate-spin" />
+              ) : (
+                <FaUpload className="h-5 w-5 mr-2" />
+              )}
+              {loading ? "Scanning..." : "Scan Image"}
             </button>
             <button
               onClick={handleReset}
               disabled={loading}
-              className={`bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 ${
+              className={`flex-1 bg-gradient-to-r from-gray-600 to-gray-500 text-white rounded-md py-2 px-4 flex items-center justify-center shadow-md hover:from-gray-500 hover:to-gray-400 transition-all duration-300 ${
                 loading ? "opacity-50 cursor-not-allowed" : ""
               }`}
             >
+              <FaRedo className="h-5 w-5 mr-2" />
               Reset
             </button>
           </div>
+
+          {/* Error/Message */}
           {error && (
-            <div className="mt-2 p-4 bg-red-100 text-red-700 rounded-lg">
+            <div className="mt-4 px-3 py-2 rounded-md bg-gradient-to-r from-red-100 to-red-50 border border-red-200 text-red-700 shadow-md">
+              <h2 className="font-semibold">Error</h2>
               <p>{error}</p>
             </div>
           )}
           {message && (
-            <div className="mt-2 p-2 bg-yellow-100 text-yellow-700 rounded-lg">
+            <div className="mt-4 px-3 py-2 rounded-md bg-gradient-to-r from-yellow-100 to-yellow-50 border border-yellow-200 text-yellow-700 shadow-md">
+              <h2 className="font-semibold">Notification</h2>
               <p>{message}</p>
             </div>
           )}
         </div>
-        {extractedUrl && (
-          <>
-            <UrlResult
-              extractedUrl={extractedUrl}
-              safetyStatus={safetyStatus}
-            />
-            <UrlAnalysis
-              extractedUrl={extractedUrl}
-              safetyStatus={safetyStatus}
-              isAnalysisOpen={isAnalysisOpen}
-              toggleAnalysis={toggleAnalysis}
-              isLoading={loading}
-            />
-          </>
-        )}
+
+        {/* Right Panel - URL Analysis with Spinner */}
+        <div className="w-1/2">
+          <UrlAnalysis
+            extractedUrl={extractedUrl}
+            safetyStatus={safetyStatus}
+            isAnalysisOpen={isAnalysisOpen}
+            toggleAnalysis={toggleAnalysis}
+            isLoading={loading} // Correct prop name for UrlAnalysis
+          />
+        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes heartbeat {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.2);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+        .animate-heartbeat {
+          animation: heartbeat 1s infinite;
+        }
+      `}</style>
     </div>
   );
 };

@@ -17,7 +17,7 @@ const WebcamScan = () => {
   });
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true);
   const [notification, setNotification] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(
     new Date().toLocaleTimeString()
   );
@@ -88,7 +88,7 @@ const WebcamScan = () => {
       setSafetyStatus({ overall: "", details: {} });
       setWebcamOn(false);
       setScanning(false);
-      setIsLoading(false);
+      setLoading(false);
       console.log(data.message);
     } catch (err) {
       setWebcamError("Failed to stop webcam.");
@@ -103,7 +103,7 @@ const WebcamScan = () => {
       const data = await response.json();
       setCameraIndex(index);
       setScanning(false);
-      setIsLoading(false);
+      setLoading(false);
       setIsCameraMenuOpen(false);
       console.log(data.message);
     } catch (err) {
@@ -130,7 +130,6 @@ const WebcamScan = () => {
       const response = await fetch("http://localhost:8000/stop_scan");
       const data = await response.json();
       setScanning(false);
-      setIsLoading(false);
       setNotification("Scan stopped successfully.");
       console.log(data.message);
     } catch (err) {
@@ -142,32 +141,35 @@ const WebcamScan = () => {
     try {
       const response = await fetch("http://localhost:8000/get_url");
       const data = await response.json();
-      console.log("Backend response from get_url:", data); // Debug log
-      if (data.url) {
-        console.log("URL detected:", data.url);
+      console.log("Backend response from get_url:", data);
+
+      if (data.evaluating) {
+        setLoading(true);
+        console.log("Backend is evaluating URL, loading set to true");
+      } else if (data.url && !data.evaluating) {
+        console.log("URL detected and evaluation complete:", data.url);
         setExtractedUrl(data.url);
-        setSafetyStatus(data.safety_status || { overall: "Unknown", details: {} });
-        setIsLoading(true);
-        console.log("isLoading set to true");
-        stopScan();
-        // Simulate evaluation completion (e.g., after 2 seconds)
-        setTimeout(() => {
-          console.log("Evaluation complete, setting isLoading to false");
-          setIsLoading(false);
-        }, 2000);
+        setSafetyStatus(
+          data.safety_status || { overall: "Unknown", details: {} }
+        );
+        setLoading(false);
+        console.log("Evaluation complete, loading set to false");
+        await stopScan();
       } else {
-        console.log("No URL detected in response");
+        setLoading(false);
+        console.log("No URL detected or evaluating in response");
       }
     } catch (err) {
       console.error("Error in getUrlResult:", err);
       setWebcamError("Failed to get URL result.");
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     let interval;
     if (scanning) {
-      interval = setInterval(getUrlResult, 2000);
+      interval = setInterval(getUrlResult, 500); // Poll more frequently
     }
     return () => clearInterval(interval);
   }, [scanning]);
@@ -203,7 +205,6 @@ const WebcamScan = () => {
 
   return (
     <div className="p-6">
-      {/* Heading with Dropdown */}
       <div className="flex items-center mb-5">
         <div className="relative" ref={navMenuRef}>
           <button
@@ -250,10 +251,8 @@ const WebcamScan = () => {
       </div>
 
       <div className="flex gap-6 items-start">
-        {/* Left Panel - Webcam */}
         <div className="w-1/2 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden shadow-lg">
           <div className="relative">
-            {/* LIVE Badge with Tooltip, Heartbeat Animation, Dynamic Color, and Timestamp */}
             {webcamOn && (
               <div
                 className={`absolute top-2 left-2 text-white px-2 py-1 rounded-md flex items-center shadow-md group ${
@@ -271,10 +270,9 @@ const WebcamScan = () => {
               </div>
             )}
 
-            {/* Webcam Feed */}
             <div className="h-105 bg-gray-200 flex items-center justify-center relative">
               {webcamOn ? (
-                isLoading ? (
+                loading ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-200 bg-opacity-50">
                     <svg
                       className="animate-spin h-8 w-8 text-blue-500 mb-2"
@@ -296,7 +294,9 @@ const WebcamScan = () => {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    <p className="text-blue-500 font-medium">Evaluating URL...</p>
+                    <p className="text-blue-500 font-medium">
+                      Evaluating URL...
+                    </p>
                   </div>
                 ) : (
                   <img
@@ -310,7 +310,6 @@ const WebcamScan = () => {
               )}
             </div>
 
-            {/* Webcam and Scan Controls */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
               {webcamOn ? (
                 <>
@@ -401,34 +400,7 @@ const WebcamScan = () => {
 
           <UrlResult extractedUrl={extractedUrl} safetyStatus={safetyStatus} />
 
-          {/* Notification Section */}
-          {isLoading ? (
-            <div className="px-3 py-2 rounded-md bg-gradient-to-r from-blue-100 to-blue-50 border border-blue-200 text-blue-700 shadow-md">
-              <div className="flex items-center">
-                <svg
-                  className="animate-spin h-5 w-5 text-blue-500 mr-2"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <p>Evaluating URL...</p>
-              </div>
-            </div>
-          ) : notification ? (
+          {notification ? (
             <div className="px-3 py-2 rounded-md bg-gradient-to-r from-green-100 to-green-50 border border-green-200 text-green-700 shadow-md">
               <h2 className="font-semibold">Notification</h2>
               <p>{notification}</p>
@@ -443,14 +415,13 @@ const WebcamScan = () => {
           )}
         </div>
 
-        {/* Right Panel - URL Analysis */}
         <div className="w-1/2">
           <UrlAnalysis
             extractedUrl={extractedUrl}
             safetyStatus={safetyStatus}
             isAnalysisOpen={isAnalysisOpen}
             toggleAnalysis={toggleAnalysis}
-            isLoading={isLoading}
+            isLoading={loading}
           />
         </div>
       </div>

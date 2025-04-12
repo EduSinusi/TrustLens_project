@@ -1,23 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
-import ApiInfoBubble from "../Components/ApiInfoBubble";
+import { FcFeedback } from "react-icons/fc";
+import { FaPaperPlane } from "react-icons/fa";
+import InfoBubble from "./InfoBubble";
 import VirusTotalAnalysis from "../Components/APIs/virustotal";
 import TrustLensSecurityCheck from "./Security Check/DomainSecurity";
+import FeedbackFormPopup from "./popupFeedbackForm";
 
-const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysis, isLoading }) => {
-  // Map the backend overall safety status to the front-end display value
+const UrlAnalysis = ({
+  extractedUrl,
+  safetyStatus,
+  isAnalysisOpen,
+  toggleAnalysis,
+  isLoading,
+}) => {
+  const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
+
   const mapOverallSafetyStatus = (backendStatus) => {
     if (backendStatus === "Unknown" || backendStatus === "URL DOES NOT EXIST") {
-      return "URL Unknown"; // Display "URL Unknown" for non-existent domains
+      return "URL Unknown";
     }
-    return backendStatus; // Use the backend status directly for other cases
+    return backendStatus;
   };
 
   const overallSafetyStatus = safetyStatus.overall
     ? mapOverallSafetyStatus(safetyStatus.overall)
-    : "Unknown"; // Fallback to "Unknown" if safetyStatus.overall is not set
+    : "Unknown";
 
-  // Determine the background color based on overallSafetyStatus
   const backgroundColorClass =
     overallSafetyStatus === "Safe"
       ? "bg-gradient-to-br from-green-50 to-green-100"
@@ -29,13 +38,34 @@ const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysi
       ? "bg-gradient-to-br from-blue-50 to-blue-100"
       : "bg-gradient-to-br from-yellow-50 to-yellow-100";
 
-  // Check if URL is non-existent (based on backend overall status or TrustLens status)
   const isUrlNonExistent =
     safetyStatus.details?.url_info?.status === "Non-existent";
 
+  // Map block_status to user-friendly display text and styling
+  const getBlockStatusDisplay = (blockStatus) => {
+    const statusMap = {
+      Blocked: { text: "Blocked", className: "text-green-600" },
+      already_blocked: { text: "Blocked", className: "text-green-600" },
+      permission_denied: {
+        text: "Failed - Permission Denied",
+        className: "text-red-600",
+      },
+      error: { text: "Failed - Error", className: "text-red-600" },
+      invalid_url: { text: "Failed - Invalid URL", className: "text-red-600" },
+    };
+    return (
+      statusMap[blockStatus] || { text: "Unknown", className: "text-gray-600" }
+    );
+  };
+
+  const blockStatusDisplay = safetyStatus.details?.url_info?.block_status
+    ? getBlockStatusDisplay(safetyStatus.details.url_info.block_status)
+    : { text: "Not Blocked", className: "text-gray-600" };
+
   return (
-    <div className={`w-full ${backgroundColorClass} rounded-lg overflow-hidden shadow-lg`}>
-      {/* Dropdown Header */}
+    <div
+      className={`w-full ${backgroundColorClass} rounded-lg overflow-hidden shadow-lg relative`}
+    >
       <div
         className="bg-gradient-to-r from-blue-500 to-blue-400 text-white p-4 flex justify-between items-center cursor-pointer shadow-md"
         onClick={toggleAnalysis}
@@ -43,16 +73,22 @@ const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysi
         <h2 className="font-bold text-xl ml-1">URL ANALYSIS</h2>
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className={`h-6 w-6 transition-transform duration-300 ${isAnalysisOpen ? "rotate-180" : ""}`}
+          className={`h-6 w-6 transition-transform duration-300 ${
+            isAnalysisOpen ? "rotate-180" : ""
+          }`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 15l7-7 7 7"
+          />
         </svg>
       </div>
 
-      {/* Dropdown Content */}
       <div
         className={`transition-all duration-500 ease-in-out overflow-y-auto ${
           isAnalysisOpen ? "max-h-130 opacity-100" : "max-h-0 opacity-0"
@@ -84,9 +120,10 @@ const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysi
           </div>
         ) : extractedUrl ? (
           <div className="p-4 space-y-4">
-            {/* Overall Safety Status */}
             <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
-              <h3 className="font-semibold text-gray-800">Overall Safety Status</h3>
+              <h3 className="font-semibold text-lg mb-1 text-gray-800">
+                Overall Safety Status
+              </h3>
               <p className="text-gray-700">
                 Status:{" "}
                 <span
@@ -105,19 +142,42 @@ const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysi
                   {overallSafetyStatus}
                 </span>
               </p>
+              {overallSafetyStatus === "Unsafe" && (
+                <p>
+                  Block Status:{" "}
+                  <span
+                    className={`font-medium ${blockStatusDisplay.className}`}
+                  >
+                    {blockStatusDisplay.text}
+                  </span>
+                </p>
+              )}
             </div>
 
-            {/* VirusTotal (only show if URL exists and VirusTotal result is present) */}
             {!isUrlNonExistent && safetyStatus.details?.virustotal?.status && (
-              <VirusTotalAnalysis safetyStatus={safetyStatus} extractedUrl={extractedUrl} />
+              <VirusTotalAnalysis
+                safetyStatus={safetyStatus}
+                extractedUrl={extractedUrl}
+              />
             )}
 
-            {/* TrustLens URL Security Status Check */}
             {safetyStatus.details?.url_info && (
               <TrustLensSecurityCheck
                 safetyStatus={safetyStatus}
                 extractedUrl={extractedUrl}
               />
+            )}
+
+            {!isUrlNonExistent && safetyStatus.details?.url_info && (
+              <div className="mt-2 flex justify-center">
+                <button
+                  onClick={() => setIsFeedbackPopupOpen(true)}
+                  className="flex items-center px-6 py-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none"
+                >
+                  <FaPaperPlane className="mr-2" />
+                  Submit Feedback
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -126,6 +186,12 @@ const UrlAnalysis = ({ extractedUrl, safetyStatus, isAnalysisOpen, toggleAnalysi
           </div>
         )}
       </div>
+
+      <FeedbackFormPopup
+        isOpen={isFeedbackPopupOpen}
+        onClose={() => setIsFeedbackPopupOpen(false)}
+        url={extractedUrl || ""}
+      />
     </div>
   );
 };

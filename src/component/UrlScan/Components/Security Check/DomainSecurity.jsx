@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import ApiInfoBubble from "../ApiInfoBubble";
+import InfoBubble from "../InfoBubble";
 import TrustLensSecurityFullReportPopup from "./popupDomainSecurity";
 
 const TrustLensSecurityCheck = ({ safetyStatus, extractedUrl }) => {
@@ -16,13 +16,12 @@ const TrustLensSecurityCheck = ({ safetyStatus, extractedUrl }) => {
 
   // Determine if URL does not exist
   const isUrlNonExistent =
-    safetyStatus.overall === "Unknown" ||
-    safetyStatus.overall === "URL DOES NOT EXIST" ||
+    safetyStatus.overall === "URL does not exist" ||
     safetyStatus.details?.url_info?.status === "Non-existent";
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-200">
-      {/* Header with Icon and API Info Bubble */}
+      {/* Header with Icon and Info Bubble */}
       <div className="flex items-center mb-3">
         <div
           className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 ${
@@ -92,7 +91,7 @@ const TrustLensSecurityCheck = ({ safetyStatus, extractedUrl }) => {
         <span className="font-medium text-gray-800">
           TrustLens Domain Security Checker
         </span>
-        <ApiInfoBubble apiName="TrustLens URL Security Status Check" />
+        <InfoBubble apiName="TrustLens Domain Security Check" />
       </div>
 
       {/* Summary Information */}
@@ -153,12 +152,15 @@ const TrustLensSecurityCheck = ({ safetyStatus, extractedUrl }) => {
                       className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                         fullResult.security_score >= 25
                           ? "bg-green-100 text-green-700"
-                          : fullResult.security_score < 25
+                          : fullResult.security_score >= 10
                           ? "bg-yellow-100 text-yellow-700"
                           : "bg-red-100 text-red-700"
                       }`}
                     >
-                      {fullResult.security_score || "N/A"}
+                      {fullResult.security_score !== null &&
+                      fullResult.security_score !== undefined
+                        ? fullResult.security_score
+                        : "N/A"}
                     </span>
                   </p>
                 </div>

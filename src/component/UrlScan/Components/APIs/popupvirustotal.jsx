@@ -41,7 +41,6 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
     }
   }, [isOpen, extractedUrl]);
 
-  // Handle click outside to close
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (popupRef.current && !popupRef.current.contains(event.target)) {
@@ -82,7 +81,7 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
       const categoryA = resultA.category || "undetected";
       const categoryB = resultB.category || "undetected";
 
-      if (overallStatus === "Unsafe") {
+      if (overallStatus === "Unsafe" || overallStatus === "Potentially Unsafe") {
         if (categoryA === "malicious" && categoryB !== "malicious") return -1;
         if (categoryB === "malicious" && categoryA !== "malicious") return 1;
       }
@@ -113,7 +112,6 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
         ref={popupRef}
         className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative"
       >
-        {/* Fixed Close Button */}
         <button
           onClick={onClose}
           className="fixed top-5 right-97 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors z-50 bg-white rounded-full p-2 shadow-md"
@@ -135,14 +133,12 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
           </svg>
         </button>
 
-        {/* Header */}
         <div className="mb-1 pb-3">
           <h3 className="text-2xl ml-1 font-bold text-gray-800">
             VirusTotal Analysis Report
           </h3>
         </div>
 
-        {/* Loading State */}
         {loading && (
           <div className="flex justify-center items-center py-8">
             <svg
@@ -169,17 +165,14 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
           </div>
         )}
 
-        {/* Error State */}
         {error && (
           <div className="bg-red-50 text-red-600 text-sm p-4 rounded-md mb-4">
             <p>Error: {error}</p>
           </div>
         )}
 
-        {/* Content */}
         {fullResult && !loading && !error && (
           <div className="space-y-6">
-            {/* Stats Section */}
             <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
               <h4 className="text-lg font-semibold text-gray-700 mb-3">
                 Scan Statistics
@@ -230,7 +223,6 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
               </div>
             </div>
 
-            {/* Engine Results Section (Table) */}
             {fullResult.scan_results &&
               Object.keys(fullResult.scan_results).length > 0 && (
                 <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
@@ -266,7 +258,7 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
                   {isEngineResultsOpen && (
                     <div className="max-h-84 overflow-y-auto">
                       <table className="min-w-full bg-white rounded-lg shadow-sm border border-gray-200">
-                        <thead className="bg-gray-100 text-gray-700 text-sm font-semibold sticky top-0">
+                        <thead className="bg-gray-100 text-gray-700 text-sm font-semibold sticky top-[-1px]">
                           <tr>
                             <th className="py-3 px-4 text-left w-1/4">
                               Security Engine
@@ -332,7 +324,6 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
                 </div>
               )}
 
-            {/* Final Result Section */}
             <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
               <h4 className="text-lg font-semibold text-gray-700 mb-3">
                 Final Result
@@ -344,7 +335,9 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
                       ? "bg-green-100 text-green-700"
                       : fullResult.status === "Unsafe"
                       ? "bg-red-100 text-red-700"
-                      : "bg-yellow-100 text-yellow-700"
+                      : fullResult.status === "Potentially Unsafe"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-gray-100 text-gray-700"
                   }`}
                 >
                   {fullResult.status || "Unknown"}
