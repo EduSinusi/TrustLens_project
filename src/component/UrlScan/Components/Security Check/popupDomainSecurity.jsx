@@ -64,7 +64,7 @@ const TrustLensSecurityFullReportPopup = ({
         {/* Fixed Close Button */}
         <button
           onClick={onClose}
-          className="fixed top-6 right-6 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors z-50 bg-white rounded-full p-2 shadow-md"
+          className="fixed top-6 right-96 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors z-50 bg-white rounded-full p-2 shadow-md"
           aria-label="Close popup"
         >
           <svg
@@ -175,6 +175,16 @@ const TrustLensSecurityFullReportPopup = ({
                             age_info.historical ? ", Historical Data" : ""
                           })`
                         : "N/A"}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-md shadow-sm">
+                    <div className="flex items-center">
+                      <p className="text-sm text-gray-600">GeoIP Location</p>
+                      <InfoBubble apiName="GeoIP Location" />
+                    </div>
+                    <p className="text-lg font-medium text-gray-800">
+                      {checks?.find((check) => check.check === "GeoIP Location")
+                        ?.status || "N/A"}
                     </p>
                   </div>
                 </div>

@@ -13,6 +13,7 @@ import UrlSearchBar from "./component/UrlScan/SearchBarUrl";
 import ImageExtract from "./component/UrlScan/ImageExtract"
 import ScanHistory from "./pages/ScanHistory";
 import NotFoundPage from "./pages/NotFoundPage";
+import Dashboard from "./pages/Dashboard";
 
 const App = () => {
   return (
@@ -36,6 +37,7 @@ const App = () => {
           <Route path="/url-scan/webcam" element={<UrlScan />} />
           <Route path="/url-scan/search" element={<UrlSearchBar />} />
           <Route path="/url-scan/image" element={<ImageExtract />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/" element={<ScanHistory />} />
           {/* <Route path="/support" element={<Support />} /> 
           <Route path="*" element={<NotFoundPage />} /> */} 
