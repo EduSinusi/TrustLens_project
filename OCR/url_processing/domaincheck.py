@@ -5,20 +5,23 @@ from datetime import datetime
 import requests
 import tldextract
 import ssl
-import logging
-from dateutil.parser import parse as date_parse
+import google.cloud.logging
 import OpenSSL
 from typing import Dict, List, Optional, Set, Any
 import re
 import dns.reversename
 import time
 import json
+from dateutil.parser import parse as date_parse
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Initialize Google Cloud Logging
+client = google.cloud.logging.Client.from_service_account_json(
+    r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\triple-ranger-453716-u9-a59d61bef762.json"
+)
+logger = client.logger("domaincheck")
 
 class DNSSecurityAnalyzer:
     def __init__(self, timeout: int = 10):
-        """Initialize the DNS Security Analyzer with configurable timeout."""
         self.timeout = timeout
         self.trusted_email_providers = {
             'google.com': 'Google Mail',
@@ -33,7 +36,6 @@ class DNSSecurityAnalyzer:
         self.common_subdomains = ['www', 'mail', 'ftp', 'blog', 'shop']
 
     def get_certificate_creation_date(self, domain: str) -> Optional[datetime]:
-        """Get domain creation date from SSL certificate."""
         try:
             context = ssl.create_default_context()
             with socket.create_connection((domain, 443), timeout=self.timeout) as sock:
@@ -43,17 +45,16 @@ class DNSSecurityAnalyzer:
                     not_before = x509.get_notBefore().decode('utf-8')
                     return datetime.strptime(not_before, '%Y%m%d%H%M%SZ')
         except (socket.timeout, ConnectionRefusedError, socket.gaierror):
-            logging.warning(f"Connection to {domain}:443 failed")
+            logger.log_text(f"Connection to {domain}:443 failed", severity="WARNING")
             return None
         except ssl.SSLError as e:
-            logging.warning(f"SSL error for {domain}: {e}")
+            logger.log_text(f"SSL error for {domain}: {e}", severity="WARNING")
             return None
         except Exception as e:
-            logging.warning(f"Certificate date failed for {domain}: {e}")
+            logger.log_text(f"Certificate date failed for {domain}: {e}", severity="ERROR")
             return None
 
     def get_domain_age(self, domain: str) -> Dict[str, Any]:
-        """Calculate domain age with historical WHOIS fallback."""
         age_info = {'days': None, 'source': None, 'historical': False}
         try:
             info = whois.whois(domain)
@@ -69,7 +70,7 @@ class DNSSecurityAnalyzer:
                 age_info['source'] = 'WHOIS'
                 return age_info
         except Exception as e:
-            logging.error(f"WHOIS age error for {domain}: {e}")
+            logger.log_text(f"WHOIS age error for {domain}: {e}", severity="ERROR")
 
         cert_date = self.get_certificate_creation_date(domain)
         if cert_date:
@@ -93,11 +94,10 @@ class DNSSecurityAnalyzer:
                     age_info['historical'] = True
                     return age_info
         except (requests.RequestException, ValueError) as e:
-            logging.error(f"crt.sh lookup failed for {domain}: {e}")
+            logger.log_text(f"crt.sh lookup failed for {domain}: {e}", severity="ERROR")
         return age_info
 
     def analyze_mx_records(self, domain: str, mx_records: List) -> Dict[str, Any]:
-        """Evaluate MX records with provider detection."""
         analysis: Dict[str, Any] = {
             'risk': 'low',
             'explanation': [],
@@ -117,7 +117,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def check_domain_existence(self, domain: str) -> bool:
-        """Check if domain exists using Google's public DNS (8.8.8.8)."""
         resolver = dns.resolver.Resolver()
         resolver.nameservers = ['8.8.8.8']
         try:
@@ -126,11 +125,10 @@ class DNSSecurityAnalyzer:
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
             return False
         except Exception as e:
-            logging.warning(f"Alternative DNS check failed for {domain}: {e}")
+            logger.log_text(f"Alternative DNS check failed for {domain}: {e}", severity="WARNING")
             return False
 
     def analyze_spf_record(self, txt_records: List[str]) -> Dict[str, Any]:
-        """Analyze SPF record for validity and permissiveness."""
         spf_record = next((r for r in txt_records if 'v=spf1' in r), None)
         analysis = {
             'check': 'SPF Record',
@@ -153,7 +151,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def reverse_dns_lookup(self, ip: str) -> Dict[str, Any]:
-        """Perform reverse DNS lookup on the IP."""
         analysis = {
             'check': 'Reverse DNS',
             'status': 'Not performed',
@@ -178,7 +175,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def check_tls_versions(self, domain: str) -> Dict[str, Any]:
-        """Check supported TLS versions and cipher suites."""
         analysis = {
             'check': 'TLS Versions',
             'status': 'Not checked',
@@ -214,7 +210,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def check_http_availability(self, domain: str) -> Dict[str, Any]:
-        """Check HTTP/HTTPS availability, HSTS, and certificate status."""
         analysis = {
             'check': 'HTTP/HTTPS Availability',
             'status': 'Not checked',
@@ -259,7 +254,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def check_blacklist(self, ip: str) -> Dict[str, Any]:
-        """Check if IP is listed in a DNS blacklist."""
         analysis = {
             'check': 'Blacklist Status',
             'status': 'Not checked',
@@ -287,7 +281,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def get_geoip_info(self, ip: str) -> Dict[str, Any]:
-        """Fetch geolocation data for the IP using ip-api.com."""
         analysis = {
             'check': 'GeoIP Location',
             'status': 'Not checked',
@@ -311,7 +304,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def check_subdomains(self, domain: str) -> Dict[str, Any]:
-        """Check common subdomains for existence."""
         analysis = {
             'check': 'Subdomain Enumeration',
             'status': 'Not checked',
@@ -336,7 +328,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def check_caa_records(self, domain: str) -> Dict[str, Any]:
-        """Check CAA records for SSL issuance restrictions."""
         analysis = {
             'check': 'CAA Records',
             'status': 'Not checked',
@@ -359,7 +350,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def check_ipv6_support(self, domain: str) -> Dict[str, Any]:
-        """Check for IPv6 (AAAA) records."""
         analysis = {
             'check': 'IPv6 Support',
             'status': 'Not checked',
@@ -381,7 +371,6 @@ class DNSSecurityAnalyzer:
         return analysis
 
     def enhanced_dns_check(self, url: str) -> Dict[str, Any]:
-        """Comprehensive DNS security analysis with advanced checks."""
         results: Dict[str, Any] = {
             'domain': '',
             'ip': None,
@@ -392,7 +381,7 @@ class DNSSecurityAnalyzer:
             'security_score': 100
         }
         
-        logging.info(f"Starting analysis for {url}")
+        logger.log_text(f"Starting analysis for {url}", severity="INFO")
         try:
             if not re.match(r'^https?://[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', url):
                 raise ValueError("Invalid URL format")
@@ -400,13 +389,12 @@ class DNSSecurityAnalyzer:
             extracted = tldextract.extract(url)
             domain = f"{extracted.domain}.{extracted.suffix}"
             results['domain'] = domain
-            logging.info(f"Extracted domain: {domain}")
+            logger.log_text(f"Extracted domain: {domain}", severity="INFO")
 
-            # DNS Resolution with Timing
             try:
                 start_time = time.time()
                 ip = socket.gethostbyname(domain)
-                dns_time = (time.time() - start_time) * 1000  # Convert to ms
+                dns_time = (time.time() - start_time) * 1000
                 results['ip'] = ip
                 results['checks'].append({
                     'check': 'DNS Resolution',
@@ -424,25 +412,22 @@ class DNSSecurityAnalyzer:
                     results['risk_summary']['low'] -= 1
                     results['risk_summary']['medium'] += 1
                     results['security_score'] -= 5
-                logging.info(f"DNS resolved to {ip} in {dns_time:.2f} ms")
+                logger.log_text(f"DNS resolved to {ip} in {dns_time:.2f} ms", severity="INFO")
             except socket.gaierror as e:
-                logging.warning(f"DNS resolution failed: {e}")
+                logger.log_text(f"DNS resolution failed: {e}", severity="WARNING")
                 if not self.check_domain_existence(domain):
-                    # Domain does not exist - immediately return with "Unknown" status
                     results['checks'].append({
                         'check': 'DNS Resolution',
                         'status': 'Non-existent',
-                        'risk': 'N/A',  # Risk is not applicable since we're returning early
+                        'risk': 'N/A',
                         'explanation': [
                             "Domain does not exist in DNS.",
                             "Possible typo or unregistered domain.",
                             "Recommendation: Verify the domain name or contact the domain owner."
                         ]
                     })
-                    # Update results to reflect "Unknown" status
                     results['status'] = "Unknown"
                     results['message'] = "Domain does not exist in DNS"
-                    # Ensure minimal results structure
                     results['ip'] = None
                     results['ipv6'] = []
                     results['age_info'] = None
@@ -452,11 +437,10 @@ class DNSSecurityAnalyzer:
                         'medium': 0,
                         'low': 0
                     }
-                    results['security_score'] = 0  # No security score since domain doesn't exist
-                    logging.info(f"Domain {domain} does not exist - returning Unknown status")
+                    results['security_score'] = 0
+                    logger.log_text(f"Domain {domain} does not exist - returning Unknown status", severity="INFO")
                     return results
                 else:
-                    # Temporary DNS failure
                     results['checks'].append({
                         'check': 'DNS Resolution',
                         'status': 'Failed',
@@ -465,9 +449,7 @@ class DNSSecurityAnalyzer:
                     })
                     results['risk_summary']['medium'] += 1
                     results['security_score'] -= 20
-                    # Continue with the rest of the checks
 
-            # Domain Age
             try:
                 age_info = self.get_domain_age(domain)
                 results['age_info'] = age_info
@@ -491,11 +473,10 @@ class DNSSecurityAnalyzer:
                     results['security_score'] -= 10
                 results['checks'].append(age_analysis)
                 results['risk_summary'][age_analysis['risk']] += 1
-                logging.info(f"Domain age: {age_info['days']} days from {age_info['source']}")
+                logger.log_text(f"Domain age: {age_info['days']} days from {age_info['source']}", severity="INFO")
             except Exception as e:
-                logging.error(f"Domain age check failed: {e}")
+                logger.log_text(f"Domain age check failed: {e}", severity="ERROR")
 
-            # MX Records
             try:
                 mx_records = dns.resolver.resolve(domain, 'MX')
                 mx_analysis = self.analyze_mx_records(domain, mx_records)
@@ -517,9 +498,8 @@ class DNSSecurityAnalyzer:
                 })
                 results['risk_summary']['low'] += 1
             except Exception as e:
-                logging.error(f"MX records check failed: {e}")
+                logger.log_text(f"MX records check failed: {e}", severity="ERROR")
 
-            # Email Security (SPF/DKIM/DMARC)
             try:
                 txt_records = [r.to_text() for r in dns.resolver.resolve(domain, 'TXT')]
                 spf_analysis = self.analyze_spf_record(txt_records)
@@ -565,9 +545,8 @@ class DNSSecurityAnalyzer:
                 results['risk_summary']['high'] += 1
                 results['security_score'] -= 30
             except Exception as e:
-                logging.error(f"Email security check failed: {e}")
+                logger.log_text(f"Email security check failed: {e}", severity="ERROR")
 
-            # DNSSEC
             try:
                 dns.resolver.resolve(domain, 'DNSKEY')
                 results['checks'].append({
@@ -587,18 +566,16 @@ class DNSSecurityAnalyzer:
                 results['risk_summary']['medium'] += 1
                 results['security_score'] -= 10
             except Exception as e:
-                logging.error(f"DNSSEC check failed: {e}")
+                logger.log_text(f"DNSSEC check failed: {e}", severity="ERROR")
 
-            # IPv6 Support
             try:
                 ipv6_analysis = self.check_ipv6_support(domain)
                 results['ipv6'] = ipv6_analysis['status'].replace("Found: ", "").split(", ") if "Found" in ipv6_analysis['status'] else []
                 results['checks'].append(ipv6_analysis)
                 results['risk_summary'][ipv6_analysis['risk']] += 1
             except Exception as e:
-                logging.error(f"IPv6 check failed: {e}")
+                logger.log_text(f"IPv6 check failed: {e}", severity="ERROR")
 
-            # TLS Versions
             try:
                 tls_analysis = self.check_tls_versions(domain)
                 results['checks'].append(tls_analysis)
@@ -608,9 +585,8 @@ class DNSSecurityAnalyzer:
                 elif tls_analysis['risk'] == 'medium':
                     results['security_score'] -= 10
             except Exception as e:
-                logging.error(f"TLS versions check failed: {e}")
+                logger.log_text(f"TLS versions check failed: {e}", severity="ERROR")
 
-            # Other Checks
             try:
                 reverse_analysis = self.reverse_dns_lookup(ip)
                 results['checks'].append(reverse_analysis)
@@ -618,7 +594,7 @@ class DNSSecurityAnalyzer:
                 if reverse_analysis['risk'] == 'medium':
                     results['security_score'] -= 10
             except Exception as e:
-                logging.error(f"Reverse DNS check failed: {e}")
+                logger.log_text(f"Reverse DNS check failed: {e}", severity="ERROR")
 
             try:
                 http_analysis = self.check_http_availability(domain)
@@ -629,7 +605,7 @@ class DNSSecurityAnalyzer:
                 elif http_analysis['risk'] == 'high':
                     results['security_score'] -= 25
             except Exception as e:
-                logging.error(f"HTTP/HTTPS check failed: {e}")
+                logger.log_text(f"HTTP/HTTPS check failed: {e}", severity="ERROR")
 
             try:
                 blacklist_analysis = self.check_blacklist(ip)
@@ -638,21 +614,21 @@ class DNSSecurityAnalyzer:
                 if blacklist_analysis['risk'] == 'high':
                     results['security_score'] -= 30
             except Exception as e:
-                logging.error(f"Blacklist check failed: {e}")
+                logger.log_text(f"Blacklist check failed: {e}", severity="ERROR")
 
             try:
                 geoip_analysis = self.get_geoip_info(ip)
                 results['checks'].append(geoip_analysis)
                 results['risk_summary'][geoip_analysis['risk']] += 1
             except Exception as e:
-                logging.error(f"GeoIP check failed: {e}")
+                logger.log_text(f"GeoIP check failed: {e}", severity="ERROR")
 
             try:
                 subdomain_analysis = self.check_subdomains(domain)
                 results['checks'].append(subdomain_analysis)
                 results['risk_summary'][subdomain_analysis['risk']] += 1
             except Exception as e:
-                logging.error(f"Subdomain check failed: {e}")
+                logger.log_text(f"Subdomain check failed: {e}", severity="ERROR")
 
             try:
                 caa_analysis = self.check_caa_records(domain)
@@ -661,13 +637,13 @@ class DNSSecurityAnalyzer:
                 if caa_analysis['risk'] == 'medium':
                     results['security_score'] -= 10
             except Exception as e:
-                logging.error(f"CAA check failed: {e}")
+                logger.log_text(f"CAA check failed: {e}", severity="ERROR")
 
             results['security_score'] = max(0, min(100, results['security_score']))
-            logging.info(f"Analysis completed for {domain} with score {results['security_score']}")
+            logger.log_text(f"Analysis completed for {domain} with score {results['security_score']}", severity="INFO")
 
         except Exception as e:
-            logging.error(f"Critical failure in analysis for {url}: {str(e)}")
+            logger.log_text(f"Critical failure in analysis for {url}: {str(e)}", severity="ERROR")
             results['checks'].append({
                 'check': 'Analysis Error',
                 'status': 'Failed',
@@ -680,20 +656,18 @@ class DNSSecurityAnalyzer:
         return results
 
 def check_domain_security(url: str) -> dict:
-    """Simplified function to check URL info using DNSSecurityAnalyzer."""
     analyzer = DNSSecurityAnalyzer(timeout=10)
     result = analyzer.enhanced_dns_check(url)
 
-    # Check if domain does not exist
     dns_check = next((check for check in result['checks'] if check['check'] == 'DNS Resolution'), None)
     if dns_check and dns_check['status'] == 'Non-existent':
+        logger.log_text(f"Domain does not exist for {url}", severity="INFO")
         return {
             "status": "Non-existent",
             "message": "Domain does not exist in DNS",
             "details": result
         }
 
-    # Determine status based on security score and risk summary
     security_score = result['security_score']
     risk_summary = result['risk_summary']
     
@@ -710,6 +684,12 @@ def check_domain_security(url: str) -> dict:
         status = "Unknown"
         message = "Insufficient data to determine safety"
 
+    logger.log_struct({
+        "message": "Domain security check completed",
+        "url": url,
+        "status": status,
+        "security_score": security_score
+    }, severity="INFO")
     return {
         "status": status,
         "message": message,
@@ -718,4 +698,8 @@ def check_domain_security(url: str) -> dict:
 
 if __name__ == "__main__":
     result = check_domain_security("https://google.com")
-    print(json.dumps(result, indent=2))
+    logger.log_struct({
+        "message": "Test domain security check",
+        "url": "https://google.com",
+        "result": result
+    }, severity="INFO")

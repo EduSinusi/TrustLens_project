@@ -4,6 +4,13 @@ from .virustotal import check_virustotal, get_virustotal_full_result
 from .domaincheck import check_domain_security
 from website_blocker import block_unsafe_website
 import time
+import google.cloud.logging
+
+# Initialize Google Cloud Logging
+client = google.cloud.logging.Client.from_service_account_json(
+    r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\triple-ranger-453716-u9-a59d61bef762.json"
+)
+logger = client.logger("url_processor")
 
 # Initialize Firebase Admin SDK
 if not firebase_admin._apps:
@@ -17,8 +24,8 @@ urls_collection = db.collection('Scanned URLs')
 blocked_websites_collection = db.collection('Blocked Websites')
 
 def check_url_in_firestore(url: str) -> tuple[dict, bool]:
-    """Check if URL exists in Firestore and verify if it has complete API data."""
     if not url:
+        logger.log_text("No URL provided to check in Firestore", severity="ERROR")
         return {"overall": "Error", "details": {"general": "No URL to check"}}, False
 
     try:
@@ -26,9 +33,12 @@ def check_url_in_firestore(url: str) -> tuple[dict, bool]:
         if query:
             doc = query[0].to_dict()
             safety_status = doc.get("safety_status", {"overall": "Unknown", "details": {}})
-            print(f"Found in Firestore: {doc}")
+            logger.log_struct({
+                "message": "Found URL in Firestore",
+                "url": url,
+                "safety_status": safety_status
+            }, severity="INFO")
             
-            # Check if all required API data exists
             details = safety_status.get("details", {})
             required_apis = {"virustotal", "url_info"}
             has_all_data = all(api in details and details[api] for api in required_apis)
@@ -36,21 +46,25 @@ def check_url_in_firestore(url: str) -> tuple[dict, bool]:
             if has_all_data:
                 return safety_status, True
             else:
-                print(f"URL {url} found but missing some API data, proceeding to full evaluation.")
+                logger.log_text(f"URL {url} found but missing some API data, proceeding to full evaluation", severity="INFO")
                 return None, False
-        print(f"URL {url} not found in Firestore, proceeding to evaluate.")
+        logger.log_text(f"URL {url} not found in Firestore, proceeding to evaluate", severity="INFO")
         return None, False
     except Exception as e:
+        logger.log_struct({
+            "message": "Firestore error",
+            "url": url,
+            "error": str(e)
+        }, severity="ERROR")
         return {"overall": "Error", "details": {"general": f"Firestore error: {str(e)}"}}, False
 
 def evaluate_url(url: str) -> dict:
-    """Evaluate URL using TrustLens URL Security Check first, then VirusTotal if domain exists."""
-    print(f"Evaluating URL: {url}")
+    logger.log_text(f"Evaluating URL: {url}", severity="INFO")
     
     domain_sec_result = check_domain_security(url)
 
     if domain_sec_result["status"] == "Non-existent":
-        print(f"Domain {url} is non-existent, skipping VirusTotal scan.")
+        logger.log_text(f"Domain {url} is non-existent, skipping VirusTotal scan", severity="INFO")
         return {
             "overall": "URL does not exist",
             "details": {
@@ -74,9 +88,11 @@ def evaluate_url(url: str) -> dict:
         "url_info": domain_sec_result
     }
     
-    print(f"Evaluation Results for {url}:")
-    for service, result in results.items():
-        print(f"{service}: {result}")
+    logger.log_struct({
+        "message": "Evaluation results",
+        "url": url,
+        "results": results
+    }, severity="INFO")
 
     url_info_status = domain_sec_result["status"]
     if url_info_status == "Unknown":
@@ -87,13 +103,17 @@ def evaluate_url(url: str) -> dict:
             "message": message,
             "details": results
         }
-        print(f"Evaluated Safety Status: {safety_status}")
+        logger.log_struct({
+            "message": "Evaluated safety status",
+            "url": url,
+            "safety_status": safety_status
+        }, severity="INFO")
         return safety_status
 
     virustotal_status = virustotal_full_result["status"]
     url_info_security_score = domain_sec_result["details"]["security_score"]
 
-    # Updated rule-based decision making
+    # Rule-based decision making
     if virustotal_status == "Unsafe" and url_info_status == "Unsafe":
         overall = "Unsafe"
         message = "Detected as unsafe by VirusTotal or TrustLens Domain Security Check"
@@ -145,15 +165,18 @@ def evaluate_url(url: str) -> dict:
         "message": message,
         "details": results
     }
-    print(f"Evaluated Safety Status: {safety_status}")
+    logger.log_struct({
+        "message": "Evaluated safety status",
+        "url": url,
+        "safety_status": safety_status
+    }, severity="INFO")
     return safety_status
 
 def store_url_in_firestore(url: str, safety_status: dict):
-    """Store or update URL evaluation in Firestore."""
     if not url:
+        logger.log_text("No URL provided to store in Firestore", severity="ERROR")
         return
     
-    # Ensure safety_status is a dict with overall and details
     if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
         safety_status = {
             "overall": "Error",
@@ -171,16 +194,28 @@ def store_url_in_firestore(url: str, safety_status: dict):
         if query:
             doc_ref = query[0].reference
             doc_ref.set(data)
-            print(f"Updated in Firestore (Scanned URLs): {data}")
+            logger.log_struct({
+                "message": "Updated URL in Firestore",
+                "url": url,
+                "data": data
+            }, severity="INFO")
         else:
             urls_collection.add(data)
-            print(f"Stored in Firestore (Scanned URLs): {data}")
+            logger.log_struct({
+                "message": "Stored new URL in Firestore",
+                "url": url,
+                "data": data
+            }, severity="INFO")
     except Exception as e:
-        print(f"Failed to store in Firestore: {e}")
+        logger.log_struct({
+            "message": "Failed to store in Firestore",
+            "url": url,
+            "error": str(e)
+        }, severity="ERROR")
 
 def store_blocked_website_in_firestore(url: str, safety_status: dict):
-    """Store blocked URL in Firestore."""
     if not url:
+        logger.log_text("No URL provided to store as blocked website", severity="ERROR")
         return
     
     if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
@@ -191,7 +226,7 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict):
     
     existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
     if existing:
-        print(f"URL {url} already blocked.")
+        logger.log_text(f"URL {url} already blocked", severity="INFO")
         return
     
     data = {
@@ -203,12 +238,19 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict):
     
     try:
         blocked_websites_collection.add(data)
-        print(f"Stored in Firestore (Blocked Websites): {data}")
+        logger.log_struct({
+            "message": "Stored blocked website in Firestore",
+            "url": url,
+            "data": data
+        }, severity="INFO")
     except Exception as e:
-        print(f"Failed to store in Firestore: {e}")
+        logger.log_struct({
+            "message": "Failed to store blocked website in Firestore",
+            "url": url,
+            "error": str(e)
+        }, severity="ERROR")
 
 def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str]:
-    """Process URL, re-evaluate if 'Unknown', and block if unsafe."""
     safety_status, found = check_url_in_firestore(url)
     
     attempt = 1
@@ -217,7 +259,7 @@ def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str]:
         store_url_in_firestore(url, safety_status)
     
     while safety_status["overall"] == "Unknown" and attempt < max_attempts:
-        print(f"Status is 'Unknown' for {url}, re-evaluating (attempt {attempt + 1}/{max_attempts})...")
+        logger.log_text(f"Status is 'Unknown' for {url}, re-evaluating (attempt {attempt + 1}/{max_attempts})", severity="INFO")
         time.sleep(10)
         safety_status = evaluate_url(url)
         store_url_in_firestore(url, safety_status)
@@ -228,20 +270,19 @@ def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str]:
         existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
         if existing:
             block_status = "already_blocked"
+            logger.log_text(f"URL {url} already blocked in Firestore", severity="INFO")
         else:
             blocked, status = block_unsafe_website(url)
-            block_status = status if status else "error"  # Fallback to "error" if status is None
+            block_status = status if status else "error"
             if blocked:
                 store_blocked_website_in_firestore(url, safety_status)
         
-        # Attach block_status to safety_status
         if not safety_status.get("details"):
             safety_status["details"] = {}
         if not safety_status["details"].get("url_info"):
             safety_status["details"]["url_info"] = {}
         safety_status["details"]["url_info"]["block_status"] = block_status
     
-    # Update Firestore with the modified safety_status
     store_url_in_firestore(url, safety_status)
     
     return safety_status, block_status
@@ -249,4 +290,9 @@ def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str]:
 if __name__ == "__main__":
     test_url = "https://example.com"
     safety, block = process_and_block_url(test_url)
-    print(f"Safety: {safety}, Block Status: {block}")
+    logger.log_struct({
+        "message": "Test URL processing completed",
+        "url": test_url,
+        "safety": safety,
+        "block_status": block
+    }, severity="INFO")

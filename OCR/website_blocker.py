@@ -1,64 +1,62 @@
 import os
+import platform
+import google.cloud.logging
 
-HOSTS_FILE = r"C:\Windows\System32\drivers\etc\hosts"  # Path to the hosts file on Windows
-REDIRECT_IP = "127.0.0.1"  # Redirect unsafe websites to localhost
+# Initialize Google Cloud Logging
+client = google.cloud.logging.Client.from_service_account_json(
+    r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\triple-ranger-453716-u9-a59d61bef762.json"
+)
+logger = client.logger("website_blocker")
 
-def block_in_hosts(domain):
-    """
-    Block a domain by adding it to the hosts file.
-    Returns a tuple (success: bool, status: str) where status is 'blocked' or 'already_blocked'.
-    """
+def block_unsafe_website(url: str) -> tuple[bool, str]:
+    """Block a website by adding it to the hosts file."""
     try:
-        # Read the current hosts file
-        with open(HOSTS_FILE, "r") as file:
-            content = file.read()
-            # Check if the domain is already blocked (with or without www)
-            if f"{REDIRECT_IP} {domain}" in content or f"{REDIRECT_IP} www.{domain}" in content:
-                print(f"{domain} is already blocked in the hosts file.")
-                return True, "Blocked"
+        if not url:
+            logger.log_text("No URL provided for blocking", severity="ERROR")
+            return False, "no_url"
 
-        # Add the domain to the hosts file
-        with open(HOSTS_FILE, "a") as file:
-            file.write(f"\n{REDIRECT_IP} {domain}\n")
-            file.write(f"{REDIRECT_IP} www.{domain}\n")  # Also block the www version
-            print(f"Blocked {domain} and www.{domain} in the hosts file.")
-        return True, "Blocked"
-    except PermissionError:
-        print("Permission denied: Run this script as an administrator to modify the hosts file.")
-        return False, "permission_denied"
-    except Exception as e:
-        print(f"Failed to block {domain} in the hosts file. Error: {e}")
-        return False, "error"
-
-def extract_domain(url):
-    """
-    Extract the domain from a URL.
-    """
-    from urllib.parse import urlparse
-    parsed_url = urlparse(url)
-    domain = parsed_url.netloc
-    # Remove www. prefix if present
-    if domain.startswith("www."):
-        domain = domain[4:]
-    return domain
-
-def block_unsafe_website(url):
-    """
-    Block an unsafe website by adding it to the hosts file.
-    Returns a tuple (success: bool, status: str) where status indicates the blocking outcome.
-    """
-    try:
-        domain = extract_domain(url)
+        # Normalize URL to extract domain
+        domain = url.replace("http://", "").replace("https://", "").split("/")[0]
         if not domain:
-            print(f"Invalid URL: {url}")
+            logger.log_text("Invalid domain extracted from URL", severity="ERROR")
             return False, "invalid_url"
 
-        success, status = block_in_hosts(domain)
-        if success:
-            print(f"Successfully {status}: {domain}")
-        else:
-            print(f"Failed to block: {domain} (Status: {status})")
-        return success, status
+        hosts_path = "/etc/hosts" if platform.system() != "Windows" else r"C:\Windows\System32\drivers\etc\hosts"
+        redirect_ip = "127.0.0.1"
+        entry = f"{redirect_ip} {domain}\n"
+
+        logger.log_text(f"Attempting to block domain: {domain}", severity="INFO")
+
+        # Check if already blocked
+        if os.path.exists(hosts_path):
+            with open(hosts_path, "r") as file:
+                if entry.strip() in file.read():
+                    logger.log_text(f"Domain {domain} already blocked in hosts file", severity="INFO")
+                    return True, "already_blocked"
+
+        # Write to hosts file
+        try:
+            with open(hosts_path, "a") as file:
+                file.write(entry)
+            logger.log_text(f"Successfully blocked domain: {domain}", severity="INFO")
+            return True, "blocked"
+        except PermissionError:
+            logger.log_text(f"Permission denied when writing to {hosts_path}", severity="ERROR")
+            return False, "permission_denied"
+        except Exception as e:
+            logger.log_text(f"Failed to write to hosts file: {str(e)}", severity="ERROR")
+            return False, "write_error"
+
     except Exception as e:
-        print(f"Failed to block website: {url}. Error: {e}")
+        logger.log_text(f"Error blocking website {url}: {str(e)}", severity="ERROR")
         return False, "error"
+
+if __name__ == "__main__":
+    test_url = "example.com"
+    success, status = block_unsafe_website(test_url)
+    logger.log_struct({
+        "message": "Test website blocking",
+        "url": test_url,
+        "success": success,
+        "status": status
+    }, severity="INFO")

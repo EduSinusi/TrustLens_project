@@ -16,6 +16,15 @@ import os
 from url_processing.url_processor import process_and_block_url
 from real_time_url_extractor import extract_url_from_qr_code, extract_url_from_text, preprocess_image
 from url_processing.virustotal import get_virustotal_full_result, check_virustotal
+import google.cloud.logging
+from google.cloud.logging_v2.handlers import CloudLoggingHandler
+import logging
+
+# Initialize Google Cloud Logging
+client = google.cloud.logging.Client.from_service_account_json(
+    r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\triple-ranger-453716-u9-a59d61bef762.json"
+)
+logger = client.logger("app")
 
 # Global variables
 webcam_running = False
@@ -39,78 +48,81 @@ def initialize_webcam(camera_index, max_retries=3):
     for attempt in range(max_retries):
         cap = cv2.VideoCapture(camera_index, cv2.CAP_MSMF)
         if cap.isOpened():
-            print(f"Webcam opened with MSMF at index {camera_index}")
+            logger.log_text(f"Webcam opened with MSMF at index {camera_index}", severity="INFO")
             return cap
         cap.release()
         cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
         if cap.isOpened():
-            print(f"Webcam opened with DirectShow at index {camera_index}")
+            logger.log_text(f"Webcam opened with DirectShow at index {camera_index}", severity="INFO")
             return cap
         cap.release()
         time.sleep(1)
+    logger.log_text(f"Failed to initialize webcam at index {camera_index} after {max_retries} attempts", severity="ERROR")
     return None
 
 def generate_frames(camera_index=0):
-  global current_frame, webcam_running, scanning_active, latest_url, latest_safety_status, latest_block_status, webcam_error, evaluating_url
-  cap = initialize_webcam(camera_index)
-  if not cap:
-    webcam_error = "No webcam available"
-    current_frame = create_error_frame(webcam_error)
-    webcam_running = False
-    return
-
-  webcam_running = True
-  try:
-    while webcam_running:
-      ret, frame = cap.read()
-      if not ret:
-        webcam_error = f"Failed to capture frame from webcam {camera_index}"
+    global current_frame, webcam_running, scanning_active, latest_url, latest_safety_status, latest_block_status, webcam_error, evaluating_url
+    cap = initialize_webcam(camera_index)
+    if not cap:
+        webcam_error = "No webcam available"
         current_frame = create_error_frame(webcam_error)
-        break
+        webcam_running = False
+        logger.log_text("No webcam available", severity="ERROR")
+        return
 
-      if scanning_active:
-        latest_url = None
-        latest_safety_status = None
-        latest_block_status = None
-        
-        url = extract_url_from_qr_code(frame)
-        if not url:
-          processed_frame = preprocess_image(frame)
-          url = extract_url_from_qr_code(processed_frame) or extract_url_from_text(processed_frame)
+    webcam_running = True
+    try:
+        while webcam_running:
+            ret, frame = cap.read()
+            if not ret:
+                webcam_error = f"Failed to capture frame from webcam {camera_index}"
+                current_frame = create_error_frame(webcam_error)
+                logger.log_text(webcam_error, severity="ERROR")
+                break
 
-        if url:
-          print(f"URL detected: {url}")
-          latest_url = url
-          evaluating_url = True  # Set evaluating flag
-          latest_safety_status, latest_block_status = process_and_block_url(url)
-          evaluating_url = False  # Reset after evaluation
-          scanning_active = False
-          cv2.putText(frame, f"URL: {url}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            if scanning_active:
+                latest_url = None
+                latest_safety_status = None
+                latest_block_status = None
+                
+                url = extract_url_from_qr_code(frame)
+                if not url:
+                    processed_frame = preprocess_image(frame)
+                    url = extract_url_from_qr_code(processed_frame) or extract_url_from_text(processed_frame)
 
-      current_frame = frame.copy()
-      webcam_error = None
-      cv2.waitKey(50)
-  finally:
-    cap.release()
-    webcam_running = False
-    scanning_active = False
-    evaluating_url = False
-    print("Webcam released")
+                if url:
+                    logger.log_text(f"URL detected: {url}", severity="INFO")
+                    latest_url = url
+                    evaluating_url = True
+                    latest_safety_status, latest_block_status = process_and_block_url(url)
+                    evaluating_url = False
+                    scanning_active = False
+                    cv2.putText(frame, f"URL: {url}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+            current_frame = frame.copy()
+            webcam_error = None
+            cv2.waitKey(50)
+    finally:
+        cap.release()
+        webcam_running = False
+        scanning_active = False
+        evaluating_url = False
+        logger.log_text("Webcam released", severity="INFO")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global webcam_thread, scanning_active
-    scanning_active = False  # Ensure scanning is off on startup
+    scanning_active = False
     webcam_thread = Thread(target=generate_frames, args=(current_camera_index,))
     webcam_thread.start()
-    print("Webcam thread started on startup")
+    logger.log_text("Webcam thread started on startup", severity="INFO")
     yield
     global webcam_running
     webcam_running = False
-    scanning_active = False  # Reset scanning_active on shutdown
+    scanning_active = False
     if webcam_thread:
         webcam_thread.join()
-        print("Webcam thread stopped on shutdown")
+        logger.log_text("Webcam thread stopped on shutdown", severity="INFO")
 
 app = FastAPI(lifespan=lifespan)
 
@@ -139,69 +151,80 @@ async def video_feed(camera_index: int):
 async def switch_camera(camera_index: int):
     global webcam_running, webcam_thread, current_camera_index, scanning_active
     if camera_index not in [0, 1]:
+        logger.log_text(f"Invalid camera index: {camera_index}", severity="ERROR")
         raise HTTPException(status_code=400, detail="Invalid camera index. Use 0 or 1.")
     webcam_running = False
-    scanning_active = False  # Reset scanning_active when switching cameras
+    scanning_active = False
     if webcam_thread:
         webcam_thread.join()
     current_camera_index = camera_index
     webcam_thread = Thread(target=generate_frames, args=(camera_index,))
     webcam_thread.start()
     camera_name = "laptop webcam" if camera_index == 0 else "external webcam"
+    logger.log_text(f"Switched to {camera_name}", severity="INFO")
     return {"message": f"Switched to {camera_name}"}
 
 @app.get("/stop_webcam")
 async def stop_webcam():
     global webcam_running, webcam_thread, latest_url, latest_safety_status, latest_block_status, scanning_active
     if not webcam_running:
+        logger.log_text("Webcam is already stopped", severity="INFO")
         return {"message": "Webcam is already stopped"}
     webcam_running = False
-    scanning_active = False  # Reset scanning_active when stopping webcam
+    scanning_active = False
     if webcam_thread:
         webcam_thread.join()
         webcam_thread = None
     latest_url = None
     latest_safety_status = None
     latest_block_status = None
+    logger.log_text("Webcam stopped successfully and scan results cleared", severity="INFO")
     return {"message": "Webcam stopped successfully and scan results cleared"}
 
 @app.get("/start_webcam")
 async def start_webcam():
     global webcam_running, webcam_thread, current_camera_index, scanning_active
     if webcam_running:
+        logger.log_text("Webcam is already running", severity="INFO")
         return {"message": "Webcam is already running"}
-    scanning_active = False  # Ensure scanning is off when starting webcam
+    scanning_active = False
     webcam_thread = Thread(target=generate_frames, args=(current_camera_index,))
     webcam_thread.start()
+    logger.log_text("Webcam started successfully", severity="INFO")
     return {"message": "Webcam started successfully"}
 
 @app.get("/start_scan")
 async def start_scan():
     global scanning_active, latest_url, latest_safety_status, latest_block_status
     if not webcam_running:
+        logger.log_text("Attempted to start scan but webcam is not running", severity="ERROR")
         raise HTTPException(status_code=400, detail="Webcam is not running")
     latest_url = None
     latest_safety_status = None
     latest_block_status = None
     scanning_active = True
+    logger.log_text("Scanning started", severity="INFO")
     return {"message": "Scanning started"}
 
 @app.get("/stop_scan")
 async def stop_scan():
     global scanning_active
     scanning_active = False
+    logger.log_text("Scanning stopped", severity="INFO")
     return {"message": "Scanning stopped"}
 
 @app.get("/get_url")
 async def get_url():
     global latest_url, latest_safety_status, latest_block_status
     if latest_url and latest_safety_status:
+        logger.log_text(f"Returning URL info: {latest_url}", severity="INFO")
         return {
             "url": latest_url,
             "safety_status": latest_safety_status,
             "block_status": latest_block_status,
             "evaluating": evaluating_url
         }
+    logger.log_text("No URL detected yet", severity="INFO")
     return {
         "url": "",
         "safety_status": {"overall": "No URL detected yet", "details": {}},
@@ -212,13 +235,15 @@ async def get_url():
 @app.get("/get_webcam_status")
 async def get_webcam_status():
     global webcam_error
+    logger.log_text(f"Webcam status check: {webcam_error if webcam_error else 'No error'}", severity="INFO")
     return {"error": webcam_error if webcam_error else ""}
 
 @app.post("/scan_url")
-@limiter.limit("10/minute")  # Limit to 10 requests per minute per IP
+@limiter.limit("10/minute")
 async def scan_url(request: Request):
     data = await request.json()
     if not data or 'url' not in data:
+        logger.log_text("No URL provided in scan_url request", severity="ERROR")
         raise HTTPException(status_code=400, detail="No URL provided")
     url = data['url']
     try:
@@ -228,7 +253,12 @@ async def scan_url(request: Request):
                 "overall": "Error",
                 "details": {"general": safety_status if isinstance(safety_status, str) else "Unknown error"}
             }
-        print(f"Scan URL Response: {url} - Safety: {safety_status}, Block Status: {block_status}")
+        logger.log_struct({
+            "message": "Scan URL completed",
+            "url": url,
+            "safety_status": safety_status,
+            "block_status": block_status
+        }, severity="INFO")
         return {
             "url": url,
             "safety_status": safety_status,
@@ -243,7 +273,11 @@ async def scan_url(request: Request):
             },
             "block_status": None
         }
-        print(f"Scan URL Error: {error_response}")
+        logger.log_struct({
+            "message": "Scan URL failed",
+            "url": url,
+            "error": str(e)
+        }, severity="ERROR")
         return error_response
 
 # Initialize Firebase Admin SDK
@@ -258,46 +292,43 @@ db = firestore.client()
 urls_collection = db.collection('Scanned URLs')
 
 @app.api_route("/get_virustotal_full_result", methods=["GET", "POST"])
-@limiter.limit("5/minute")  # Limit to 5 requests per minute per IP
+@limiter.limit("5/minute")
 async def get_virustotal_full_result_endpoint(request: Request):
-    # Extract URL from request
     if request.method == "GET":
         url = request.query_params.get("url")
         if not url:
+            logger.log_text("No URL provided in query parameters", severity="ERROR")
             raise HTTPException(status_code=400, detail="No URL provided in query parameters")
-    else:  # POST
+    else:
         data = await request.json()
         if not data or 'url' not in data:
+            logger.log_text("No URL provided in request body", severity="ERROR")
             raise HTTPException(status_code=400, detail="No URL provided in request body")
         url = data['url']
 
     try:
-        # Step 1: Try to get the result from the in-memory cache
         full_result = get_virustotal_full_result(url)
         if "error" not in full_result:
-            print(f"Retrieved full VirusTotal result from cache for {url}")
+            logger.log_text(f"Retrieved full VirusTotal result from cache for {url}", severity="INFO")
             return {"result": full_result}
 
-        # Step 2: If not in cache, try to retrieve from Firestore
         query = urls_collection.where("url", "==", url).limit(1).get()
         if query:
             doc = query[0].to_dict()
             safety_status = doc.get("safety_status", {})
             virustotal_result = safety_status.get("details", {}).get("virustotal", {})
             if virustotal_result and "stats" in virustotal_result:
-                print(f"Retrieved full VirusTotal result from Firestore for {url}")
+                logger.log_text(f"Retrieved full VirusTotal result from Firestore for {url}", severity="INFO")
                 return {"result": virustotal_result}
 
-        # Step 3: If not in Firestore, re-scan the URL
-        print(f"Full VirusTotal result not found for {url}. Re-scanning...")
+        logger.log_text(f"Full VirusTotal result not found for {url}. Re-scanning...", severity="INFO")
         scan_result = check_virustotal(url)
 
-        # Step 4: Get the full result after re-scanning
         full_result = get_virustotal_full_result(url)
         if "error" in full_result:
+            logger.log_text(f"Failed to retrieve result after re-scanning for {url}", severity="ERROR")
             raise HTTPException(status_code=404, detail="Failed to retrieve result after re-scanning")
 
-        # Step 5: Update Firestore with the new full result
         query = urls_collection.where("url", "==", url).limit(1).get()
         if query:
             doc_ref = query[0].reference
@@ -305,7 +336,7 @@ async def get_virustotal_full_result_endpoint(request: Request):
             safety_status = doc_data.get("safety_status", {"overall": "Unknown", "details": {}})
             safety_status["details"]["virustotal"] = full_result
             doc_ref.update({"safety_status": safety_status})
-            print(f"Updated Firestore with new VirusTotal result for {url}")
+            logger.log_text(f"Updated Firestore with new VirusTotal result for {url}", severity="INFO")
         else:
             safety_status = {
                 "overall": "Unknown",
@@ -316,11 +347,16 @@ async def get_virustotal_full_result_endpoint(request: Request):
                 "safety_status": safety_status,
                 "timestamp": firestore.SERVER_TIMESTAMP
             })
-            print(f"Stored new VirusTotal result in Firestore for {url}")
+            logger.log_text(f"Stored new VirusTotal result in Firestore for {url}", severity="INFO")
 
         return {"result": full_result}
 
     except Exception as e:
+        logger.log_struct({
+            "message": "Failed to fetch full VirusTotal result",
+            "url": url,
+            "error": str(e)
+        }, severity="ERROR")
         raise HTTPException(status_code=500, detail=f"Failed to fetch full VirusTotal result: {str(e)}")
 
 UPLOAD_FOLDER = 'uploads'
@@ -335,12 +371,14 @@ async def scan_image(file: UploadFile = File(...)):
     try:
         image = cv2.imread(filepath)
         if image is None:
+            logger.log_text(f"Failed to read image: {file.filename}", severity="ERROR")
             raise HTTPException(status_code=400, detail="Failed to read the image")
         processed_image = preprocess_image(image)
         url = extract_url_from_qr_code(processed_image)
         if not url:
             url = extract_url_from_text(processed_image)
         if not url:
+            logger.log_text(f"No URL detected in image: {file.filename}", severity="INFO")
             return {
                 "url": "",
                 "safety_status": {"overall": "No URL detected in the image", "details": {}},
@@ -352,7 +390,12 @@ async def scan_image(file: UploadFile = File(...)):
                 "overall": "Error",
                 "details": {"general": safety_status if isinstance(safety_status, str) else "Unknown error"}
             }
-        print(f"Scan Image Response: {url} - Safety: {safety_status}, Block Status: {block_status}")
+        logger.log_struct({
+            "message": "Scan Image completed",
+            "url": url,
+            "safety_status": safety_status,
+            "block_status": block_status
+        }, severity="INFO")
         return {
             "url": url,
             "safety_status": safety_status,
@@ -367,7 +410,11 @@ async def scan_image(file: UploadFile = File(...)):
             },
             "block_status": None
         }
-        print(f"Scan Image Error: {error_response}")
+        logger.log_struct({
+            "message": "Scan Image failed",
+            "error": str(e),
+            "filename": file.filename
+        }, severity="ERROR")
         return error_response
     finally:
         if os.path.exists(filepath):
