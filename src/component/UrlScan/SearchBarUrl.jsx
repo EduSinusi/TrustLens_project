@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import UrlAnalysis from "./Components/UrlAnalysis";
-import { FaUpload, FaRedo, FaCircleNotch } from "react-icons/fa";
+import { FaUpload, FaCircleNotch } from "react-icons/fa";
+import useAuth from "../../firebase/useAuth";
 
 const UrlSearchBar = () => {
   const [url, setUrl] = useState("");
@@ -10,11 +11,10 @@ const UrlSearchBar = () => {
   const [error, setError] = useState(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
-
   const navigate = useNavigate();
   const navMenuRef = useRef(null);
+  const { fetchWithAuth, error: authError } = useAuth();
 
-  // Handle click outside to close the dropdown
   React.useEffect(() => {
     const handleClickOutside = (event) => {
       if (navMenuRef.current && !navMenuRef.current.contains(event.target)) {
@@ -44,9 +44,11 @@ const UrlSearchBar = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/scan_url", {
+      const response = await fetchWithAuth("http://localhost:8000/scan_url", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ url }),
       });
 
@@ -62,9 +64,8 @@ const UrlSearchBar = () => {
         setError(data.detail || "An error occurred while checking the URL.");
       }
     } catch (err) {
-      setError(
-        "Failed to connect to the backend. Please ensure the server is running."
-      );
+      setError(authError || "Failed to connect to the backend. Please ensure the server is running.");
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,6 @@ const UrlSearchBar = () => {
 
   return (
     <div className="p-10 flex flex-col items-center">
-      {/* Heading with Navigation Dropdown */}
       <div className="flex items-center mb-5">
         <div className="relative" ref={navMenuRef}>
           <button
@@ -137,7 +137,6 @@ const UrlSearchBar = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
       <div className="rounded-lg shadow-lg p-6 w-full max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -175,10 +174,8 @@ const UrlSearchBar = () => {
         </form>
       </div>
       <div className="w-[900px] mt-3">
-        {/* Result Section */}
         {result && (
           <div className="mt-6 space-y-4">
-            {/* URL Analysis Section */}
             <UrlAnalysis
               extractedUrl={result.url}
               safetyStatus={result.safetyStatus}
@@ -189,11 +186,10 @@ const UrlSearchBar = () => {
           </div>
         )}
 
-        {/* Error Section */}
-        {error && (
+        {(error || authError) && (
           <div className="mt-6 p-4 rounded-md bg-red-100 border border-red-200 text-red-700">
             <h2 className="font-semibold">Error</h2>
-            <p>{error}</p>
+            <p>{error || authError}</p>
           </div>
         )}
       </div>
