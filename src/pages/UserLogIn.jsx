@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { auth } from "../firebase/firebase";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, getIdToken } from "firebase/auth";
 import { toast } from "react-toastify";
 import { BsBoxArrowLeft } from "react-icons/bs";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
@@ -16,20 +16,33 @@ export default function UserLogIn() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  // Store token in localStorage after login
+  const storeToken = async (user) => {
+    try {
+      const token = await getIdToken(user);
+      localStorage.setItem("idToken", token);
+      console.log("Token stored:", token);
+    } catch (err) {
+      console.error("Failed to store token:", err);
+      setError("Failed to retrieve authentication token");
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true); // Start loading
-    setError(null); // Clear previous errors
+    setLoading(true);
+    setError(null);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await storeToken(userCredential.user);
       console.log("User logged in successfully");
-      toast.success("Log in Succesful!");
+      toast.success("Log in Successful!");
       navigate("/home");
     } catch (err) {
       setError(err.message);
       toast.error("Login failed: " + err.message);
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
@@ -39,18 +52,17 @@ export default function UserLogIn() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      console.log("Successfully signed in:", user.displayName);
-      toast.success("Log in Succesful!", user.displayName);
+      await storeToken(result.user);
+      console.log("Successfully signed in:", result.user.displayName);
+      toast.success("Log in Successful!");
       navigate("/home");
     } catch (err) {
       setError(err.message);
       console.error("Google Sign-in Error:", err);
-      toast.success("Log in Failed: ", +err.message);
+      toast.error("Login failed: " + err.message);
     } finally {
       setLoading(false);
     }
-    toast.success("Log in Succesful!");
   };
 
   const togglePasswordVisibility = () => {
@@ -146,7 +158,7 @@ export default function UserLogIn() {
           <div className="mb-2.5 align-center">
             <button
               type="submit"
-              disabled={loading} // Disable during loading
+              disabled={loading}
               className="w-full py-3 bg-blue-600 text-white text-[18px] font-semibold rounded-lg hover:bg-blue-700 focus:outline-none"
             >
               Log In
