@@ -19,6 +19,7 @@ from url_processing.virustotal import get_virustotal_full_result, check_virustot
 import google.cloud.logging
 from google.cloud.logging_v2.handlers import CloudLoggingHandler
 import logging
+import requests
 
 # Initialize Google Cloud Logging
 client = google.cloud.logging.Client.from_service_account_json(
@@ -247,7 +248,7 @@ async def scan_url(request: Request):
         raise HTTPException(status_code=400, detail="No URL provided")
     url = data['url']
     try:
-        safety_status, block_status = process_and_block_url(url)
+        safety_status, block_status, gemini_summary = process_and_block_url(url)
         if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
             safety_status = {
                 "overall": "Error",
@@ -257,12 +258,14 @@ async def scan_url(request: Request):
             "message": "Scan URL completed",
             "url": url,
             "safety_status": safety_status,
-            "block_status": block_status
+            "block_status": block_status,
+            "gemini_summary": gemini_summary
         }, severity="INFO")
         return {
             "url": url,
             "safety_status": safety_status,
-            "block_status": block_status
+            "block_status": block_status,
+            "gemini_summary": gemini_summary
         }
     except Exception as e:
         error_response = {
@@ -358,7 +361,7 @@ async def get_virustotal_full_result_endpoint(request: Request):
             "error": str(e)
         }, severity="ERROR")
         raise HTTPException(status_code=500, detail=f"Failed to fetch full VirusTotal result: {str(e)}")
-
+    
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)

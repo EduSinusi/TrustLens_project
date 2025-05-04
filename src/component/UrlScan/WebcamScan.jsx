@@ -419,6 +419,7 @@ const WebcamScan = () => {
           <UrlAnalysis
             extractedUrl={extractedUrl}
             safetyStatus={safetyStatus}
+            gemini_summary={safetyStatus.gemini_summary}
             isAnalysisOpen={isAnalysisOpen}
             toggleAnalysis={toggleAnalysis}
             isLoading={loading}

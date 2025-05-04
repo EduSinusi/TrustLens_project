@@ -57,6 +57,7 @@ const UrlSearchBar = () => {
           url: data.url,
           safetyStatus: data.safety_status,
           blockStatus: data.block_status,
+          gemini_summary: data.gemini_summary,
         });
       } else {
         setError(data.detail || "An error occurred while checking the URL.");
@@ -182,6 +183,7 @@ const UrlSearchBar = () => {
             <UrlAnalysis
               extractedUrl={result.url}
               safetyStatus={result.safetyStatus}
+              gemini_summary={result.gemini_summary}
               isAnalysisOpen={isAnalysisOpen}
               toggleAnalysis={toggleAnalysis}
               loading={loading}

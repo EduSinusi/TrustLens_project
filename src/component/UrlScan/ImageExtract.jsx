@@ -256,9 +256,10 @@ const ImageExtract = () => {
           <UrlAnalysis
             extractedUrl={extractedUrl}
             safetyStatus={safetyStatus}
+            gemini_summary={safetyStatus.gemini_summary}
             isAnalysisOpen={isAnalysisOpen}
             toggleAnalysis={toggleAnalysis}
-            isLoading={loading} // Correct prop name for UrlAnalysis
+            isLoading={loading}
           />
         </div>
       </div>
