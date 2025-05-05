@@ -5,79 +5,127 @@ from .domaincheck import check_domain_security
 from website_blocker import block_unsafe_website
 import time
 import google.cloud.logging
-import hashlib
+import requests
 import uuid
 
 # Initialize Google Cloud Logging
 client = google.cloud.logging.Client.from_service_account_json(
-    r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\triple-ranger-453716-u9-a59d61bef762.json"
+    r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\triple-ranger-453716-u9-a59d61bef762.json"  # Adjust to your path
 )
 logger = client.logger("url_processor")
 
 # Initialize Firebase Admin SDK
 if not firebase_admin._apps:
     cred = credentials.Certificate(
-        r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\trustlens-cbf72-firebase-adminsdk-fbsvc-b5be2f6954.json"
+        r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\trustlens-cbf72-firebase-adminsdk-fbsvc-b5be2f6954.json"  # Adjust to your path
     )
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 urls_collection = db.collection('Scanned URLs')
+blocked_websites_collection = db.collection('Blocked Websites')  # Define the blocked websites collection
 
 def get_url_doc_id(url: str) -> str:
     """Generate a deterministic document ID from the URL using SHA-256."""
     return hashlib.sha256(url.encode('utf-8')).hexdigest()
 
-def check_url_in_firestore(url: str) -> tuple[dict, bool]:
+def get_gemini_summary(safety_status: dict) -> str:
+    """
+    Calls the gemini_analysis.py endpoint to generate an AI summary of the safety status.
+    Returns the summary as a string, or an error message if the call fails.
+    """
+    try:
+        response = requests.post(
+            "http://localhost:5001/gemini/summarize",
+            json={"domain_security_result": safety_status},
+            timeout=30  # Increased timeout
+        )
+        response.raise_for_status()  # Raise an exception for bad status codes
+
+        gemini_result = response.json()
+        if gemini_result.get("status") != "success":
+            error_message = gemini_result.get("message", "Unknown error in Gemini API")
+            logger.log_struct({
+                "message": "Gemini summary failed",
+                "safety_status": safety_status,
+                "error": error_message
+            }, severity="ERROR")
+            return f"Error generating summary: {error_message}"
+
+        summary = gemini_result["summary"]
+        logger.log_struct({
+            "message": "Gemini summary retrieved successfully",
+            "safety_status": safety_status,
+            "summary": summary
+        }, severity="INFO")
+        return summary
+    except requests.exceptions.RequestException as e:
+        logger.log_struct({
+            "message": "Failed to reach Gemini summary server",
+            "safety_status": safety_status,
+            "error": str(e)
+        }, severity="ERROR")
+        return f"Error reaching Gemini server: {str(e)}"
+    except Exception as e:
+        logger.log_struct({
+            "message": "Failed to generate Gemini summary",
+            "safety_status": safety_status,
+            "error": str(e)
+        }, severity="ERROR")
+        return f"Error generating summary: {str(e)}"
+
+def check_url_in_firestore(url: str) -> tuple[dict, bool, str]:
     if not url:
         logger.log_text("No URL provided to check in Firestore", severity="ERROR")
-        return {"overall": "Error", "details": {"general": "No URL to check"}}, False
+        return {"overall": "Error", "details": {"general": "No URL to check"}}, False, "Error: No URL to check"
 
     try:
-        doc_id = get_url_doc_id(url)
-        doc_ref = urls_collection.document(doc_id)
-        doc = doc_ref.get()
-        if doc.exists:
-            safety_status = doc.to_dict().get("safety_status", {"overall": "Unknown", "details": {}})
+        query = urls_collection.where("url", "==", url).limit(1).get()
+        if query:
+            doc = query[0].to_dict()
+            safety_status = doc.get("safety_status", {"overall": "Unknown", "details": {}})
+            gemini_summary = doc.get("gemini_summary", "No summary available")
             logger.log_struct({
                 "message": "Found URL in Firestore",
                 "url": url,
-                "doc_id": doc_id,
-                "safety_status": safety_status
+                "safety_status": safety_status,
+                "gemini_summary": gemini_summary
             }, severity="INFO")
             
             details = safety_status.get("details", {})
             required_apis = {"virustotal", "url_info"}
             has_all_data = all(api in details and details[api] for api in required_apis)
             
-            if has_all_data:
-                return safety_status, True
+            if has_all_data and gemini_summary != "No summary available":
+                return safety_status, True, gemini_summary
             else:
-                logger.log_text(f"URL {url} found but missing some API data, proceeding to full evaluation", severity="INFO")
-                return None, False
+                logger.log_text(f"URL {url} found but missing some API data or Gemini summary, proceeding to full evaluation", severity="INFO")
+                return None, False, "Missing data or summary"
         logger.log_text(f"URL {url} not found in Firestore, proceeding to evaluate", severity="INFO")
-        return None, False
+        return None, False, "Not found in Firestore"
     except Exception as e:
         logger.log_struct({
             "message": "Firestore error",
             "url": url,
             "error": str(e)
         }, severity="ERROR")
-        return {"overall": "Error", "details": {"general": f"Firestore error: {str(e)}"}}, False
+        return {"overall": "Error", "details": {"general": f"Firestore error: {str(e)}"}}, False, f"Firestore error: {str(e)}"
 
-def evaluate_url(url: str) -> dict:
+def evaluate_url(url: str) -> tuple[dict, str]:
     logger.log_text(f"Evaluating URL: {url}", severity="INFO")
     
     domain_sec_result = check_domain_security(url)
 
     if domain_sec_result["status"] == "Non-existent":
         logger.log_text(f"Domain {url} is non-existent, skipping VirusTotal scan", severity="INFO")
-        return {
+        safety_status = {
             "overall": "URL does not exist",
             "details": {
                 "url_info": domain_sec_result
             }
         }
+        gemini_summary = get_gemini_summary(safety_status)
+        return safety_status, gemini_summary
 
     virustotal_result = check_virustotal(url)
     virustotal_full_result = get_virustotal_full_result(url)
@@ -110,12 +158,14 @@ def evaluate_url(url: str) -> dict:
             "message": message,
             "details": results
         }
+        gemini_summary = get_gemini_summary(safety_status)
         logger.log_struct({
             "message": "Evaluated safety status",
             "url": url,
-            "safety_status": safety_status
+            "safety_status": safety_status,
+            "gemini_summary": gemini_summary
         }, severity="INFO")
-        return safety_status
+        return safety_status, gemini_summary
 
     virustotal_status = virustotal_full_result["status"]
     url_info_security_score = domain_sec_result["details"]["security_score"]
@@ -172,14 +222,16 @@ def evaluate_url(url: str) -> dict:
         "message": message,
         "details": results
     }
+    gemini_summary = get_gemini_summary(safety_status)
     logger.log_struct({
         "message": "Evaluated safety status",
         "url": url,
-        "safety_status": safety_status
+        "safety_status": safety_status,
+        "gemini_summary": gemini_summary
     }, severity="INFO")
-    return safety_status
+    return safety_status, gemini_summary
 
-def store_url_in_firestore(url: str, safety_status: dict, user_uid: str = None):
+def store_url_in_firestore(url: str, safety_status: dict, gemini_summary: str, user_uid: str = None):
     if not url:
         logger.log_text("No URL provided to store in Firestore", severity="ERROR")
         return
@@ -192,6 +244,7 @@ def store_url_in_firestore(url: str, safety_status: dict, user_uid: str = None):
             "overall": "Error",
             "details": {"general": safety_status if isinstance(safety_status, str) else "Invalid safety status format"}
         }
+        gemini_summary = "Error: Invalid safety status format"
     
     # Determine if the URL is unsafe
     is_unsafe = safety_status.get("overall") == "Unsafe"
@@ -200,6 +253,7 @@ def store_url_in_firestore(url: str, safety_status: dict, user_uid: str = None):
     global_data = {
         "url": url,
         "safety_status": safety_status,
+        "gemini_summary": gemini_summary,
         "timestamp": firestore.SERVER_TIMESTAMP
     }
     
@@ -238,7 +292,7 @@ def store_url_in_firestore(url: str, safety_status: dict, user_uid: str = None):
         }, severity="INFO")
 
         # Store in user-specific collections if user_uid is provided
-        if user_uid and isinstance(user_uid, str):
+        if user_uid:
             @firestore.transactional
             def user_specific_write(transaction, url, doc_id, data, log_data, is_unsafe, safety_status, request_id):
                 logger.log_text(f"Starting transaction for user-specific write: {url}, user_uid: {user_uid}, request_id: {request_id}", severity="DEBUG")
@@ -292,46 +346,89 @@ def store_url_in_firestore(url: str, safety_status: dict, user_uid: str = None):
         }, severity="ERROR")
         raise
 
-def process_and_block_url(url: str, user_uid: str = None, max_attempts: int = 2) -> tuple[dict, str]:
-    request_id = str(uuid.uuid4())
-    logger.log_text(f"Processing URL: {url} for user_uid: {user_uid}, request_id: {request_id}", severity="DEBUG")
+def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_summary: str):
+    if not url:
+        logger.log_text("No URL provided to store as blocked website", severity="ERROR")
+        return
     
-    safety_status, found = check_url_in_firestore(url)
+    if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
+        safety_status = {
+            "overall": "Error",
+            "details": {"general": safety_status if isinstance(safety_status, str) else "Invalid safety status format"}
+        }
+        gemini_summary = "Error: Invalid safety status format"
+    
+    existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
+    if existing:
+        logger.log_text(f"URL {url} already blocked", severity="INFO")
+        return
+    
+    data = {
+        "url": url,
+        "safety_status": safety_status,
+        "gemini_summary": gemini_summary,
+        "timestamp": firestore.SERVER_TIMESTAMP,
+        "blocked": True
+    }
+    
+    try:
+        blocked_websites_collection.add(data)
+        logger.log_struct({
+            "message": "Stored blocked website in Firestore",
+            "url": url,
+            "data": data
+        }, severity="INFO")
+    except Exception as e:
+        logger.log_struct({
+            "message": "Failed to store blocked website in Firestore",
+            "url": url,
+            "error": str(e)
+        }, severity="ERROR")
+
+def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str, str]:
+    safety_status, found, gemini_summary = check_url_in_firestore(url)
     
     if not found:
-        safety_status = evaluate_url(url)
+        safety_status, gemini_summary = evaluate_url(url)
+        store_url_in_firestore(url, safety_status, gemini_summary)
     
-    # Retries disabled to isolate duplicates
-    # To re-enable, ensure store_url_in_firestore is called only once after retries:
-    # attempt = 1
-    # while safety_status["overall"] == "Unknown" and attempt < max_attempts:
-    #     logger.log_text(f"Status is 'Unknown' for {url}, re-evaluating (attempt {attempt + 1}/{max_attempts})", severity="INFO")
-    #     time.sleep(10)
-    #     safety_status = evaluate_url(url)
-    #     attempt += 1
+    while safety_status["overall"] == "Unknown" and attempt < max_attempts:
+        logger.log_text(f"Status is 'Unknown' for {url}, re-evaluating (attempt {attempt + 1}/{max_attempts})", severity="INFO")
+        time.sleep(10)
+        safety_status, gemini_summary = evaluate_url(url)
+        store_url_in_firestore(url, safety_status, gemini_summary)
+        attempt += 1
     
     block_status = None
-    if safety_status["overall"] == "Unsafe":
-        blocked, status = block_unsafe_website(url)
-        block_status = status if status else "error"
+    if safety_status["overall"] in ["Unsafe"]:
+        existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
+        if existing:
+            block_status = "already_blocked"
+            logger.log_text(f"URL {url} already blocked in Firestore", severity="INFO")
+        else:
+            blocked, status = block_unsafe_website(url)
+            block_status = status if status else "error"
+            if blocked:
+                store_blocked_website_in_firestore(url, safety_status, gemini_summary)
+        
         if not safety_status.get("details"):
             safety_status["details"] = {}
         if not safety_status["details"].get("url_info"):
             safety_status["details"]["url_info"] = {}
         safety_status["details"]["url_info"]["block_status"] = block_status
     
-    # Store the final result
-    store_url_in_firestore(url, safety_status, user_uid)
+    store_url_in_firestore(url, safety_status, gemini_summary)
     
-    return safety_status, block_status
+    return safety_status, block_status, gemini_summary
 
 if __name__ == "__main__":
     test_url = "https://example.com"
-    safety, block = process_and_block_url(test_url, user_uid="test_user")
+    safety, block, summary = process_and_block_url(test_url)
     logger.log_struct({
         "message": "Test URL processing completed",
         "url": test_url,
         "user_uid": "test_user",
         "safety": safety,
-        "block_status": block
+        "block_status": block,
+        "gemini_summary": summary
     }, severity="INFO")

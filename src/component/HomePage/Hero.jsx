@@ -14,9 +14,12 @@ const HeroSection = () => {
           >
             Scan URLs for Security Risks Instantly
           </h1>
-          <p className="text-2xl font-semibold text-gray-600 mb-8">
+          <p className="text-2xl font-semibold text-gray-600 mb-20">
             Detect threats, improve performance, and enhance security in
             real-time with our powerful OCR tool.
+          </p>
+          <p className="text-xl font-bold text-gray-600">
+            DISCLAIMER: THIS TOOL IS ONLY A SUPPORT SYSTEM.
           </p>
         </div>
       </section>

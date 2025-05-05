@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { FcFeedback } from "react-icons/fc";
 import { FaPaperPlane } from "react-icons/fa";
 import InfoBubble from "./InfoBubble";
+import GeminiSummarySection from "./Gemini Summary/gemini_summary";
 import VirusTotalAnalysis from "../Components/APIs/virustotal";
 import TrustLensSecurityCheck from "./Security Check/DomainSecurity";
 import FeedbackFormPopup from "./popupFeedbackForm";
@@ -13,7 +14,7 @@ const UrlAnalysis = ({
   isAnalysisOpen,
   toggleAnalysis,
   isLoading,
-  userId, // New prop to indicate if user is authenticated
+  gemini_summary,
 }) => {
   const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
 
@@ -46,7 +47,7 @@ const UrlAnalysis = ({
   const getBlockStatusDisplay = (blockStatus) => {
     const statusMap = {
       blocked: { text: "Blocked", className: "text-green-600" },
-      already_blocked: { text: "Already Blocked", className: "text-green-600" },
+      already_blocked: { text: "Blocked", className: "text-green-600" },
       permission_denied: {
         text: "Failed - Permission Denied",
         className: "text-red-600",
@@ -147,6 +148,7 @@ const UrlAnalysis = ({
                   {overallSafetyStatus}
                 </span>
               </p>
+
               {overallSafetyStatus === "Unsafe" && (
                 <p>
                   Block Status:{" "}
@@ -161,6 +163,9 @@ const UrlAnalysis = ({
                     </span>
                   )}
                 </p>
+              )}
+              {!isUrlNonExistent && gemini_summary && (
+                <GeminiSummarySection gemini_summary={gemini_summary} />
               )}
             </div>
 
@@ -209,6 +214,7 @@ const UrlAnalysis = ({
 
 UrlAnalysis.propTypes = {
   extractedUrl: PropTypes.string,
+  gemini_summary: PropTypes.string,
   safetyStatus: PropTypes.shape({
     overall: PropTypes.string,
     message: PropTypes.string,

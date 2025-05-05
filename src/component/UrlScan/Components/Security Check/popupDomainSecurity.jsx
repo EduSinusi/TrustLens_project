@@ -29,7 +29,7 @@ const TrustLensSecurityFullReportPopup = ({
 
   if (!isOpen || !urlSecurityResult) return null;
 
-  const { status, message, details } = urlSecurityResult;
+  const { status, message, details, gemini_summary } = urlSecurityResult;
   const { domain, ip, ipv6, age_info, checks, risk_summary, security_score } =
     details || {};
 
