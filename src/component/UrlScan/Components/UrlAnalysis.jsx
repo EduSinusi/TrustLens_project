@@ -54,9 +54,13 @@ const UrlAnalysis = ({
       },
       error: { text: "Failed - Error", className: "text-red-600" },
       invalid_url: { text: "Failed - Invalid URL", className: "text-red-600" },
+      no_uid: {
+        text: "Not Blocked - Login Required",
+        className: "text-yellow-600",
+      },
     };
     return (
-      statusMap[blockStatus] || { text: "Unknown", className: "text-gray-600" }
+      statusMap[blockStatus] || { text: "Not Blocked", className: "text-gray-600" }
     );
   };
 
@@ -93,7 +97,7 @@ const UrlAnalysis = ({
 
       <div
         className={`transition-all duration-500 ease-in-out overflow-y-auto ${
-          isAnalysisOpen ? "max-h-130 opacity-100" : "max-h-0 opacity-0"
+          isAnalysisOpen ? "max-h-[32rem] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
         {isLoading ? (
@@ -153,6 +157,11 @@ const UrlAnalysis = ({
                   >
                     {blockStatusDisplay.text}
                   </span>
+                  {blockStatusDisplay.text === "Not Blocked - Login Required" && (
+                    <span className="text-sm text-yellow-600 ml-2">
+                      (Please log in to enable blocking)
+                    </span>
+                  )}
                 </p>
               )}
               {!isUrlNonExistent && gemini_summary && (
@@ -197,6 +206,7 @@ const UrlAnalysis = ({
         isOpen={isFeedbackPopupOpen}
         onClose={() => setIsFeedbackPopupOpen(false)}
         url={extractedUrl || ""}
+        userId={userId} // Pass userId to feedback form if needed
       />
     </div>
   );
@@ -208,11 +218,18 @@ UrlAnalysis.propTypes = {
   safetyStatus: PropTypes.shape({
     overall: PropTypes.string,
     message: PropTypes.string,
-    details: PropTypes.object,
+    details: PropTypes.shape({
+      virustotal: PropTypes.object,
+      url_info: PropTypes.shape({
+        status: PropTypes.string,
+        block_status: PropTypes.string,
+      }),
+    }),
   }),
   isAnalysisOpen: PropTypes.bool.isRequired,
   toggleAnalysis: PropTypes.func.isRequired,
   isLoading: PropTypes.bool.isRequired,
+  userId: PropTypes.string, // New prop for user authentication status
 };
 
 export default UrlAnalysis;

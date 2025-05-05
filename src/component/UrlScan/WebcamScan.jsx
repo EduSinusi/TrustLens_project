@@ -1,9 +1,12 @@
+// src/component/UrlScan/WebcamScan.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import UrlAnalysis from "./Components/UrlAnalysis";
 import UrlResult from "./Components/UrlResult";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
 import { FaCirclePlay, FaCirclePause } from "react-icons/fa6";
+import { PiPictureInPicture } from "react-icons/pi";
+import useAuth from "../../firebase/useAuth";
 
 const WebcamScan = () => {
   const [webcamError, setWebcamError] = useState("");
@@ -18,14 +21,15 @@ const WebcamScan = () => {
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true);
   const [notification, setNotification] = useState("");
   const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(
-    new Date().toLocaleTimeString()
-  );
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   const [isCameraMenuOpen, setIsCameraMenuOpen] = useState(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
-
+  const [isPipMode, setIsPipMode] = useState(false);
+  const [feedError, setFeedError] = useState(false);
   const navigate = useNavigate();
   const navMenuRef = useRef(null);
+  const pipWindowRef = useRef(null);
+  const { fetchWithAuth, error: authError } = useAuth();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -63,6 +67,32 @@ const WebcamScan = () => {
     };
   }, [isNavMenuOpen]);
 
+  useEffect(() => {
+    const pipData = {
+      feedUrl: webcamOn ? `http://localhost:8000/video_feed/${cameraIndex}` : "",
+      webcamOn,
+      isPipMode,
+    };
+    console.log("Updating localStorage with pipData:", pipData); // Debug log
+    localStorage.setItem("pipData", JSON.stringify(pipData));
+
+    if (!webcamOn && pipWindowRef.current) {
+      pipWindowRef.current.close();
+      pipWindowRef.current = null;
+      setIsPipMode(false);
+    }
+  }, [webcamOn, cameraIndex, isPipMode]);
+
+  useEffect(() => {
+    return () => {
+      if (pipWindowRef.current) {
+        pipWindowRef.current.close();
+        pipWindowRef.current = null;
+      }
+      localStorage.removeItem("pipData");
+    };
+  }, []);
+
   const toggleAnalysis = () => {
     setIsAnalysisOpen(!isAnalysisOpen);
   };
@@ -74,6 +104,7 @@ const WebcamScan = () => {
       setWebcamError("");
       setWebcamOn(true);
       setScanning(false);
+      setFeedError(false);
       console.log(data.message);
     } catch (err) {
       setWebcamError("Failed to start webcam.");
@@ -89,6 +120,7 @@ const WebcamScan = () => {
       setWebcamOn(false);
       setScanning(false);
       setLoading(false);
+      setFeedError(false);
       console.log(data.message);
     } catch (err) {
       setWebcamError("Failed to stop webcam.");
@@ -97,14 +129,13 @@ const WebcamScan = () => {
 
   const switchCamera = async (index) => {
     try {
-      const response = await fetch(
-        `http://localhost:8000/switch_camera/${index}`
-      );
+      const response = await fetch(`http://localhost:8000/switch_camera/${index}`);
       const data = await response.json();
       setCameraIndex(index);
       setScanning(false);
       setLoading(false);
       setIsCameraMenuOpen(false);
+      setFeedError(false);
       console.log(data.message);
     } catch (err) {
       setWebcamError("Failed to switch camera.");
@@ -113,15 +144,19 @@ const WebcamScan = () => {
 
   const startScan = async () => {
     try {
-      const response = await fetch("http://localhost:8000/start_scan");
+      const response = await fetchWithAuth("http://localhost:8000/start_scan");
       const data = await response.json();
-      setScanning(true);
-      setExtractedUrl("");
-      setSafetyStatus({ overall: "", details: {} });
-      setNotification("");
-      console.log(data.message);
+      if (response.ok) {
+        setScanning(true);
+        setExtractedUrl("");
+        setSafetyStatus({ overall: "", details: {} });
+        setNotification("");
+        console.log(data.message);
+      } else {
+        setWebcamError(data.detail || "Failed to start scan.");
+      }
     } catch (err) {
-      setWebcamError("Failed to start scan.");
+      setWebcamError(authError || "Failed to start scan.");
     }
   };
 
@@ -139,7 +174,7 @@ const WebcamScan = () => {
 
   const getUrlResult = async () => {
     try {
-      const response = await fetch("http://localhost:8000/get_url");
+      const response = await fetchWithAuth("http://localhost:8000/get_url");
       const data = await response.json();
       console.log("Backend response from get_url:", data);
 
@@ -149,9 +184,7 @@ const WebcamScan = () => {
       } else if (data.url && !data.evaluating) {
         console.log("URL detected and evaluation complete:", data.url);
         setExtractedUrl(data.url);
-        setSafetyStatus(
-          data.safety_status || { overall: "Unknown", details: {} }
-        );
+        setSafetyStatus(data.safety_status || { overall: "Unknown", details: {} });
         setLoading(false);
         console.log("Evaluation complete, loading set to false");
         await stopScan();
@@ -161,7 +194,7 @@ const WebcamScan = () => {
       }
     } catch (err) {
       console.error("Error in getUrlResult:", err);
-      setWebcamError("Failed to get URL result.");
+      setWebcamError(authError || "Failed to get URL result.");
       setLoading(false);
     }
   };
@@ -169,7 +202,7 @@ const WebcamScan = () => {
   useEffect(() => {
     let interval;
     if (scanning) {
-      interval = setInterval(getUrlResult, 500); // Poll more frequently
+      interval = setInterval(getUrlResult, 500);
     }
     return () => clearInterval(interval);
   }, [scanning]);
@@ -203,6 +236,51 @@ const WebcamScan = () => {
     setIsNavMenuOpen(false);
   };
 
+  const togglePipMode = () => {
+    if (isPipMode) {
+      if (pipWindowRef.current) {
+        pipWindowRef.current.close();
+        pipWindowRef.current = null;
+      }
+      setIsPipMode(false);
+    } else {
+      // Ensure localStorage is updated before opening the window
+      localStorage.setItem(
+        "pipData",
+        JSON.stringify({
+          feedUrl: `http://localhost:8000/video_feed/${cameraIndex}`,
+          webcamOn,
+          isPipMode: true,
+        })
+      );
+
+      // Add a slight delay to ensure the storage event propagates
+      setTimeout(() => {
+        const pipWindow = window.open(
+          "/pip-window",
+          "pipWindow",
+          "width=300,height=200,alwaysOnTop=true,toolbar=no,menubar=no,scrollbars=no"
+        );
+        if (pipWindow) {
+          pipWindowRef.current = pipWindow;
+          setIsPipMode(true);
+
+          pipWindow.onbeforeunload = () => {
+            pipWindowRef.current = null;
+            setIsPipMode(false);
+          };
+        } else {
+          console.error("Failed to open PiP window. Check popup blockers.");
+        }
+      }, 100); // 100ms delay
+    }
+  };
+
+  const handleFeedError = () => {
+    setFeedError(true);
+    console.error("Failed to load webcam feed.");
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center mb-5">
@@ -211,9 +289,7 @@ const WebcamScan = () => {
             onClick={toggleNavMenu}
             className="flex items-center px-2 py-1 rounded-md hover:bg-gray-300 transition-all"
           >
-            <h1 className="text-3xl font-bold ml-2 text-gray-800">
-              TrustLens Live Scan
-            </h1>
+            <h1 className="text-3xl font-bold ml-2 text-gray-800">TrustLens Live Scan</h1>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className={`h-5 w-5 ml-3 transition-transform duration-300 ${
@@ -294,19 +370,31 @@ const WebcamScan = () => {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    <p className="text-blue-500 font-medium">
-                      Evaluating URL...
-                    </p>
+                    <p className="text-blue-500 font-medium">Evaluating URL...</p>
+                  </div>
+                ) : feedError ? (
+                  <div className="w-full h-full flex items-center justify-center text-gray-500">
+                    Failed to load webcam feed
                   </div>
                 ) : (
                   <img
                     src={`http://localhost:8000/video_feed/${cameraIndex}`}
                     alt="Webcam Feed"
                     className="w-full h-full object-cover"
+                    onError={handleFeedError}
                   />
                 )
               ) : (
                 <div className="text-gray-500">Webcam Off</div>
+              )}
+              {webcamOn && !loading && (
+                <button
+                  onClick={togglePipMode}
+                  className="absolute bottom-2 right-2 bg-gray-800 text-white p-2 rounded-full shadow-md hover:bg-gray-700 transition-all z-10"
+                  title={isPipMode ? "Exit Picture-in-Picture Mode" : "Enter Picture-in-Picture Mode"}
+                >
+                  <PiPictureInPicture className="h-5 w-5" />
+                </button>
               )}
             </div>
 
@@ -407,10 +495,10 @@ const WebcamScan = () => {
             </div>
           ) : null}
 
-          {webcamError && (
+          {(webcamError || authError) && (
             <div className="px-2 py-2 rounded-md bg-gradient-to-r from-red-100 to-red-50 border border-red-200 text-red-700 shadow-md">
               <h2 className="font-semibold">Error</h2>
-              <p>{webcamError}</p>
+              <p>{webcamError || authError}</p>
             </div>
           )}
         </div>

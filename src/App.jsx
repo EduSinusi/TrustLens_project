@@ -12,6 +12,7 @@ import UrlScan from "./component/UrlScan/WebcamScan";
 import UrlSearchBar from "./component/UrlScan/SearchBarUrl";
 import ImageExtract from "./component/UrlScan/ImageExtract"
 import ScanHistory from "./pages/ScanHistory";
+import PipWindow from "./component/UrlScan/Components/PipWindow/PipWindow";
 import NotFoundPage from "./pages/NotFoundPage";
 import Dashboard from "./pages/Dashboard";
 
@@ -35,6 +36,7 @@ const App = () => {
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/user-profile" element={<Profile />} />
           <Route path="/url-scan/webcam" element={<UrlScan />} />
+          <Route path="/url-scan/pip-window" element={<PipWindow />} />
           <Route path="/url-scan/search" element={<UrlSearchBar />} />
           <Route path="/url-scan/image" element={<ImageExtract />} />
           <Route path="/dashboard" element={<Dashboard />} />

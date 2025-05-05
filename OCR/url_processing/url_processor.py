@@ -6,6 +6,7 @@ from website_blocker import block_unsafe_website
 import time
 import google.cloud.logging
 import requests
+import uuid
 
 # Initialize Google Cloud Logging
 client = google.cloud.logging.Client.from_service_account_json(
@@ -22,7 +23,11 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 urls_collection = db.collection('Scanned URLs')
-blocked_websites_collection = db.collection('Blocked Websites')
+blocked_websites_collection = db.collection('Blocked Websites')  # Define the blocked websites collection
+
+def get_url_doc_id(url: str) -> str:
+    """Generate a deterministic document ID from the URL using SHA-256."""
+    return hashlib.sha256(url.encode('utf-8')).hexdigest()
 
 def get_gemini_summary(safety_status: dict) -> str:
     """
@@ -226,10 +231,13 @@ def evaluate_url(url: str) -> tuple[dict, str]:
     }, severity="INFO")
     return safety_status, gemini_summary
 
-def store_url_in_firestore(url: str, safety_status: dict, gemini_summary: str):
+def store_url_in_firestore(url: str, safety_status: dict, gemini_summary: str, user_uid: str = None):
     if not url:
         logger.log_text("No URL provided to store in Firestore", severity="ERROR")
         return
+    
+    request_id = str(uuid.uuid4())
+    logger.log_text(f"Storing URL: {url} for user_uid: {user_uid}, request_id: {request_id}", severity="DEBUG")
     
     if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
         safety_status = {
@@ -238,36 +246,105 @@ def store_url_in_firestore(url: str, safety_status: dict, gemini_summary: str):
         }
         gemini_summary = "Error: Invalid safety status format"
     
-    data = {
+    # Determine if the URL is unsafe
+    is_unsafe = safety_status.get("overall") == "Unsafe"
+    
+    # Prepare data for global Scanned URLs (without blocked field)
+    global_data = {
         "url": url,
         "safety_status": safety_status,
         "gemini_summary": gemini_summary,
         "timestamp": firestore.SERVER_TIMESTAMP
     }
     
+    # Prepare data for user-specific scanned_urls
+    user_data = {
+        "url": url,
+        "safety_status": safety_status,
+        "timestamp": firestore.SERVER_TIMESTAMP,
+        "blocked": is_unsafe  # Only store blocked field in user-specific collection
+    }
+    
+    # Create a log-safe copy of data without SERVER_TIMESTAMP
+    log_global_data = {
+        "url": url,
+        "safety_status": safety_status,
+        "timestamp": "SERVER_TIMESTAMP"
+    }
+    log_user_data = {
+        "url": url,
+        "safety_status": safety_status,
+        "timestamp": "SERVER_TIMESTAMP",
+        "blocked": is_unsafe
+    }
+    
     try:
-        query = urls_collection.where("url", "==", url).limit(1).get()
-        if query:
-            doc_ref = query[0].reference
-            doc_ref.set(data)
-            logger.log_struct({
-                "message": "Updated URL in Firestore",
-                "url": url,
-                "data": data
-            }, severity="INFO")
-        else:
-            urls_collection.add(data)
-            logger.log_struct({
-                "message": "Stored new URL in Firestore",
-                "url": url,
-                "data": data
-            }, severity="INFO")
+        # Store in global Scanned URLs collection (without blocked field)
+        doc_id = get_url_doc_id(url)
+        doc_ref = urls_collection.document(doc_id)
+        doc_ref.set(global_data)
+        logger.log_struct({
+            "message": "Stored/Updated URL in global Scanned URLs",
+            "url": url,
+            "doc_id": doc_id,
+            "data": log_global_data,
+            "request_id": request_id
+        }, severity="INFO")
+
+        # Store in user-specific collections if user_uid is provided
+        if user_uid:
+            @firestore.transactional
+            def user_specific_write(transaction, url, doc_id, data, log_data, is_unsafe, safety_status, request_id):
+                logger.log_text(f"Starting transaction for user-specific write: {url}, user_uid: {user_uid}, request_id: {request_id}", severity="DEBUG")
+                
+                user_urls_collection = db.collection('users').document(user_uid).collection('scanned_urls')
+                user_doc_ref = user_urls_collection.document(doc_id)
+                
+                # Write to scanned_urls
+                transaction.set(user_doc_ref, data)
+                logger.log_struct({
+                    "message": "Stored/Updated URL in user-specific scanned_urls",
+                    "url": url,
+                    "user_uid": user_uid,
+                    "doc_id": doc_id,
+                    "data": log_data,
+                    "request_id": request_id
+                }, severity="INFO")
+
+                # Write to blocked_list if unsafe
+                if is_unsafe:
+                    blocked_list = db.collection('users').document(user_uid).collection('blocked_list')
+                    blocked_doc_ref = blocked_list.document(doc_id)
+                    if not blocked_doc_ref.get().exists:
+                        transaction.set(blocked_doc_ref, {
+                            "url": url,
+                            "reason": safety_status.get("details", {}).get("general", safety_status.get("message", "URL deemed unsafe")),
+                            "timestamp": firestore.SERVER_TIMESTAMP
+                        })
+                        logger.log_struct({
+                            "message": "Added URL to user-specific blocked_list",
+                            "url": url,
+                            "user_uid": user_uid,
+                            "doc_id": doc_id,
+                            "reason": safety_status.get("message", "URL deemed unsafe"),
+                            "request_id": request_id
+                        }, severity="INFO")
+                    else:
+                        logger.log_text(f"URL {url} already in blocked_list for user {user_uid}, request_id: {request_id}", severity="INFO")
+
+            # Run the transaction
+            transaction = db.transaction()
+            user_specific_write(transaction, url, doc_id, user_data, log_user_data, is_unsafe, safety_status, request_id)
+
     except Exception as e:
         logger.log_struct({
             "message": "Failed to store in Firestore",
             "url": url,
-            "error": str(e)
+            "user_uid": user_uid,
+            "error": str(e),
+            "request_id": request_id
         }, severity="ERROR")
+        raise
 
 def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_summary: str):
     if not url:
@@ -311,7 +388,6 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_sum
 def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str, str]:
     safety_status, found, gemini_summary = check_url_in_firestore(url)
     
-    attempt = 1
     if not found:
         safety_status, gemini_summary = evaluate_url(url)
         store_url_in_firestore(url, safety_status, gemini_summary)
@@ -351,6 +427,7 @@ if __name__ == "__main__":
     logger.log_struct({
         "message": "Test URL processing completed",
         "url": test_url,
+        "user_uid": "test_user",
         "safety": safety,
         "block_status": block,
         "gemini_summary": summary

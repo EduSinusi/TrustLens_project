@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import UrlResult from "./Components/UrlResult";
 import UrlAnalysis from "./Components/UrlAnalysis";
 import { FaUpload, FaRedo, FaCircleNotch } from "react-icons/fa";
+import useAuth from "../../firebase/useAuth";
 
 const ImageExtract = () => {
   const [image, setImage] = useState(null);
@@ -20,6 +21,7 @@ const ImageExtract = () => {
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const navMenuRef = useRef(null);
   const navigate = useNavigate();
+  const { fetchWithAuth, error: authError } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -68,11 +70,10 @@ const ImageExtract = () => {
     setError("");
     setMessage("");
 
-    const formData = new FormData();
-    formData.append("file", image);
-
     try {
-      const response = await fetch("http://localhost:8000/scan_image", {
+      const formData = new FormData();
+      formData.append("file", image);
+      const response = await fetchWithAuth("http://localhost:8000/scan_image", {
         method: "POST",
         body: formData,
       });
@@ -94,7 +95,7 @@ const ImageExtract = () => {
         setError(data.detail || "Failed to process the image.");
       }
     } catch (err) {
-      setError(`Error: ${err.message}`);
+      setError(authError || `Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -112,7 +113,6 @@ const ImageExtract = () => {
 
   return (
     <div className="max-h-screen">
-      {/* Heading with Dropdown */}
       <div className="flex items-start justify-start mb-8 ml-24 mt-5">
         <div className="relative" ref={navMenuRef}>
           <button
@@ -164,11 +164,8 @@ const ImageExtract = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex gap-20 items-start max-w-[1500px] mx-auto pb-10">
-        {/* Left Panel - Upload */}
         <div className="w-1/2 rounded-lg shadow-lg p-5">
-          {/* Upload Section */}
           <div className="mb-6">
             <label
               className="block text-gray-800 text-xl ml-2 font-bold mb-5"
@@ -185,7 +182,6 @@ const ImageExtract = () => {
             />
           </div>
 
-          {/* Preview - No Spinner Here */}
           {preview && (
             <div className="mb-10 flex flex-col items-center">
               <h2 className="text-xl font-bold text-gray-800 mb-3">
@@ -208,7 +204,6 @@ const ImageExtract = () => {
               </div>
             </div>
           )}
-          {/* Controls */}
           <div className="flex gap-4">
             <button
               onClick={handleImageUpload}
@@ -236,11 +231,10 @@ const ImageExtract = () => {
             </button>
           </div>
 
-          {/* Error/Message */}
-          {error && (
+          {(error || authError) && (
             <div className="mt-4 px-3 py-2 rounded-md bg-gradient-to-r from-red-100 to-red-50 border border-red-200 text-red-700 shadow-md">
               <h2 className="font-semibold">Error</h2>
-              <p>{error}</p>
+              <p>{error || authError}</p>
             </div>
           )}
           {message && (
@@ -251,7 +245,6 @@ const ImageExtract = () => {
           )}
         </div>
 
-        {/* Right Panel - URL Analysis with Spinner */}
         <div className="w-1/2">
           <UrlAnalysis
             extractedUrl={extractedUrl}
