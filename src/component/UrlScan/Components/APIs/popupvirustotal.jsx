@@ -81,7 +81,10 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
       const categoryA = resultA.category || "undetected";
       const categoryB = resultB.category || "undetected";
 
-      if (overallStatus === "Unsafe" || overallStatus === "Potentially Unsafe") {
+      if (
+        overallStatus === "Unsafe" ||
+        overallStatus === "Potentially Unsafe"
+      ) {
         if (categoryA === "malicious" && categoryB !== "malicious") return -1;
         if (categoryB === "malicious" && categoryA !== "malicious") return 1;
       }
@@ -209,15 +212,17 @@ const VirusTotalFullResultPopup = ({ isOpen, onClose, extractedUrl }) => {
                   </p>
                 </div>
                 <div className="bg-white p-3 rounded-md shadow-sm">
-                  <p className="text-sm text-gray-600">Total Scans</p>
+                  <p className="text-sm text-gray-600">Total Scans </p>
                   <p className="text-lg font-medium text-blue-600">
                     {fullResult.stats
                       ? (fullResult.stats.malicious || 0) +
                         (fullResult.stats.suspicious || 0) +
                         (fullResult.stats.harmless || 0) +
-                        (fullResult.stats.undetected || 0) +
                         (fullResult.stats.timeout || 0)
-                      : "N/A"}
+                      : "N/A"} {" "}
+                    <span className="text-sm text-gray-500">
+                      (excluding undetected)
+                    </span>
                   </p>
                 </div>
               </div>

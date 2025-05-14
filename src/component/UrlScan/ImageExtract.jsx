@@ -14,6 +14,7 @@ const ImageExtract = () => {
     details: {},
   });
   const [blockStatus, setBlockStatus] = useState(null);
+  const [geminiSummary, setGeminiSummary] = useState(""); // Added to store Gemini summary
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -21,7 +22,7 @@ const ImageExtract = () => {
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const navMenuRef = useRef(null);
   const navigate = useNavigate();
-  const { fetchWithAuth, error: authError } = useAuth();
+  const { user, fetchWithAuth, error: authError } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -55,6 +56,7 @@ const ImageExtract = () => {
       setExtractedUrl("");
       setSafetyStatus({ overall: "", details: {} });
       setBlockStatus(null);
+      setGeminiSummary(""); // Reset Gemini summary
       setError("");
       setMessage("");
     }
@@ -71,10 +73,14 @@ const ImageExtract = () => {
     setMessage("");
 
     try {
+      const idToken = user ? await user.getIdToken() : null;
       const formData = new FormData();
       formData.append("file", image);
       const response = await fetchWithAuth("http://localhost:8000/scan_image", {
         method: "POST",
+        headers: {
+          ...(idToken && { Authorization: `Bearer ${idToken}` }),
+        },
         body: formData,
       });
 
@@ -88,6 +94,7 @@ const ImageExtract = () => {
           }
         );
         setBlockStatus(data.block_status || null);
+        setGeminiSummary(data.gemini_summary || "No summary available"); // Store Gemini summary
         if (!data.url) {
           setMessage("No URL detected in the image.");
         }
@@ -107,6 +114,7 @@ const ImageExtract = () => {
     setExtractedUrl("");
     setSafetyStatus({ overall: "", details: {} });
     setBlockStatus(null);
+    setGeminiSummary(""); // Reset Gemini summary
     setError("");
     setMessage("");
   };
@@ -208,7 +216,7 @@ const ImageExtract = () => {
             <button
               onClick={handleImageUpload}
               disabled={loading || !image}
-              className={`flex-1 bg-gradient-to-t from-blue-600 to-blue-400  text-white rounded-md py-2 px-4 flex items-center justify-center shadow-md hover:from-blue-500 hover:to-blue-400 transition-all duration-300 ${
+              className={`flex-1 bg-gradient-to-t from-blue-600 to-blue-400 text-white rounded-md py-2 px-4 flex items-center justify-center shadow-md hover:from-blue-500 hover:to-blue-400 transition-all duration-300 ${
                 loading || !image ? "opacity-50 cursor-not-allowed" : ""
               }`}
             >
@@ -248,11 +256,12 @@ const ImageExtract = () => {
         <div className="w-1/2">
           <UrlAnalysis
             extractedUrl={extractedUrl}
+            gemini_summary={geminiSummary} // Pass the stored Gemini summary
             safetyStatus={safetyStatus}
-            gemini_summary={safetyStatus.gemini_summary}
             isAnalysisOpen={isAnalysisOpen}
             toggleAnalysis={toggleAnalysis}
             isLoading={loading}
+            userId={user?.uid || ""}
           />
         </div>
       </div>

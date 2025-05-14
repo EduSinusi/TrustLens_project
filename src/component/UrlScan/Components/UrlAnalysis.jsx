@@ -15,6 +15,7 @@ const UrlAnalysis = ({
   toggleAnalysis,
   isLoading,
   gemini_summary,
+  userId,
 }) => {
   const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
 
@@ -43,7 +44,6 @@ const UrlAnalysis = ({
   const isUrlNonExistent =
     safetyStatus.details?.url_info?.status === "Non-existent";
 
-  // Map block_status to user-friendly display text and styling
   const getBlockStatusDisplay = (blockStatus) => {
     const statusMap = {
       blocked: { text: "Blocked", className: "text-green-600" },
@@ -183,7 +183,7 @@ const UrlAnalysis = ({
               />
             )}
 
-            {!isUrlNonExistent && safetyStatus.details?.url_info && (
+            {!isUrlNonExistent && safetyStatus.details?.url_info && userId && (
               <div className="mt-2 flex justify-center">
                 <button
                   onClick={() => setIsFeedbackPopupOpen(true)}
@@ -206,7 +206,7 @@ const UrlAnalysis = ({
         isOpen={isFeedbackPopupOpen}
         onClose={() => setIsFeedbackPopupOpen(false)}
         url={extractedUrl || ""}
-        userId={userId} // Pass userId to feedback form if needed
+        userId={userId}
       />
     </div>
   );
@@ -229,7 +229,7 @@ UrlAnalysis.propTypes = {
   isAnalysisOpen: PropTypes.bool.isRequired,
   toggleAnalysis: PropTypes.func.isRequired,
   isLoading: PropTypes.bool.isRequired,
-  userId: PropTypes.string, // New prop for user authentication status
+  userId: PropTypes.string,
 };
 
 export default UrlAnalysis;

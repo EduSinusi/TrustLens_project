@@ -18,6 +18,7 @@ const WebcamScan = () => {
     overall: "",
     details: {},
   });
+  const [geminiSummary, setGeminiSummary] = useState("");  // Added to store Gemini summary
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true);
   const [notification, setNotification] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,7 @@ const WebcamScan = () => {
   const navigate = useNavigate();
   const navMenuRef = useRef(null);
   const pipWindowRef = useRef(null);
-  const { fetchWithAuth, error: authError } = useAuth();
+  const { user, fetchWithAuth, error: authError } = useAuth();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -73,7 +74,7 @@ const WebcamScan = () => {
       webcamOn,
       isPipMode,
     };
-    console.log("Updating localStorage with pipData:", pipData); // Debug log
+    console.log("Updating localStorage with pipData:", pipData);
     localStorage.setItem("pipData", JSON.stringify(pipData));
 
     if (!webcamOn && pipWindowRef.current) {
@@ -117,6 +118,7 @@ const WebcamScan = () => {
       const data = await response.json();
       setExtractedUrl("");
       setSafetyStatus({ overall: "", details: {} });
+      setGeminiSummary("");  // Reset Gemini summary
       setWebcamOn(false);
       setScanning(false);
       setLoading(false);
@@ -144,12 +146,18 @@ const WebcamScan = () => {
 
   const startScan = async () => {
     try {
-      const response = await fetchWithAuth("http://localhost:8000/start_scan");
+      const idToken = user ? await user.getIdToken() : null;
+      const response = await fetchWithAuth("http://localhost:8000/start_scan", {
+        headers: {
+          ...(idToken && { Authorization: `Bearer ${idToken}` }),
+        },
+      });
       const data = await response.json();
       if (response.ok) {
         setScanning(true);
         setExtractedUrl("");
         setSafetyStatus({ overall: "", details: {} });
+        setGeminiSummary("");  // Reset Gemini summary
         setNotification("");
         console.log(data.message);
       } else {
@@ -174,10 +182,15 @@ const WebcamScan = () => {
 
   const getUrlResult = async () => {
     try {
-      const response = await fetchWithAuth("http://localhost:8000/get_url");
+      const idToken = user ? await user.getIdToken() : null;
+      const response = await fetchWithAuth("http://localhost:8000/get_url", {
+        headers: {
+          ...(idToken && { Authorization: `Bearer ${idToken}` }),
+        },
+      });
       const data = await response.json();
       console.log("Backend response from get_url:", data);
-
+  
       if (data.evaluating) {
         setLoading(true);
         console.log("Backend is evaluating URL, loading set to true");
@@ -185,6 +198,7 @@ const WebcamScan = () => {
         console.log("URL detected and evaluation complete:", data.url);
         setExtractedUrl(data.url);
         setSafetyStatus(data.safety_status || { overall: "Unknown", details: {} });
+        setGeminiSummary(data.gemini_summary || "No summary available");  // Store Gemini summary
         setLoading(false);
         console.log("Evaluation complete, loading set to false");
         await stopScan();
@@ -244,7 +258,6 @@ const WebcamScan = () => {
       }
       setIsPipMode(false);
     } else {
-      // Ensure localStorage is updated before opening the window
       localStorage.setItem(
         "pipData",
         JSON.stringify({
@@ -254,7 +267,6 @@ const WebcamScan = () => {
         })
       );
 
-      // Add a slight delay to ensure the storage event propagates
       setTimeout(() => {
         const pipWindow = window.open(
           "/pip-window",
@@ -272,7 +284,7 @@ const WebcamScan = () => {
         } else {
           console.error("Failed to open PiP window. Check popup blockers.");
         }
-      }, 100); // 100ms delay
+      }, 100);
     }
   };
 
@@ -292,9 +304,7 @@ const WebcamScan = () => {
             <h1 className="text-3xl font-bold ml-2 text-gray-800">TrustLens Live Scan</h1>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className={`h-5 w-5 ml-3 transition-transform duration-300 ${
-                isNavMenuOpen ? "rotate-180" : ""
-              }`}
+              className={`h-5 w-5 ml-3 transition-transform duration-300 ${isNavMenuOpen ? "rotate-180" : ""}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -331,11 +341,7 @@ const WebcamScan = () => {
           <div className="relative">
             {webcamOn && (
               <div
-                className={`absolute top-2 left-2 text-white px-2 py-1 rounded-md flex items-center shadow-md group ${
-                  webcamError
-                    ? "bg-gradient-to-r from-yellow-600 to-yellow-500"
-                    : "bg-gradient-to-r from-red-600 to-red-500"
-                } z-10`}
+                className={`absolute top-2 left-2 text-white px-2 py-1 rounded-md flex items-center shadow-md group ${webcamError ? "bg-gradient-to-r from-yellow-600 to-yellow-500" : "bg-gradient-to-r from-red-600 to-red-500"} z-10`}
               >
                 <span className="h-2 w-2 bg-white rounded-full mr-1 animate-heartbeat"></span>
                 <span className="text-xs font-bold">LIVE</span>
@@ -419,9 +425,7 @@ const WebcamScan = () => {
                   ) : (
                     <button
                       onClick={startScan}
-                      className={`bg-gradient-to-r font-semibold from-green-600 to-green-500 text-white rounded-md py-2 px-4 flex items-center shadow-md hover:from-green-500 hover:to-green-400 transition-all ${
-                        webcamError ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
+                      className={`bg-gradient-to-r font-semibold from-green-600 to-green-500 text-white rounded-md py-2 px-4 flex items-center shadow-md hover:from-green-500 hover:to-green-400 transition-all ${webcamError ? "opacity-50 cursor-not-allowed" : ""}`}
                       disabled={webcamError}
                     >
                       <FaCirclePlay className="w-6 h-6 mr-2" />
@@ -444,9 +448,7 @@ const WebcamScan = () => {
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className={`h-5 w-5 transition-transform duration-300 ${
-                          isCameraMenuOpen ? "rotate-180" : ""
-                        }`}
+                        className={`h-5 w-5 transition-transform duration-300 ${isCameraMenuOpen ? "rotate-180" : ""}`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -465,17 +467,13 @@ const WebcamScan = () => {
                     <div className="absolute bottom-13 left-[59%] transform -translate-x-1/2 bg-gray-800 text-white rounded-md shadow-lg border border-gray-700 z-50 w-48">
                       <button
                         onClick={() => switchCamera(0)}
-                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${
-                          cameraIndex === 0 ? "bg-gray-700" : ""
-                        }`}
+                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${cameraIndex === 0 ? "bg-gray-700" : ""}`}
                       >
                         Laptop Webcam
                       </button>
                       <button
                         onClick={() => switchCamera(1)}
-                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${
-                          cameraIndex === 1 ? "bg-gray-700" : ""
-                        }`}
+                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${cameraIndex === 1 ? "bg-gray-700" : ""}`}
                       >
                         External Webcam
                       </button>
@@ -507,10 +505,11 @@ const WebcamScan = () => {
           <UrlAnalysis
             extractedUrl={extractedUrl}
             safetyStatus={safetyStatus}
-            gemini_summary={safetyStatus.gemini_summary}
+            gemini_summary={geminiSummary}  // Pass the stored Gemini summary
             isAnalysisOpen={isAnalysisOpen}
             toggleAnalysis={toggleAnalysis}
             isLoading={loading}
+            userId={user?.uid || ""}
           />
         </div>
       </div>

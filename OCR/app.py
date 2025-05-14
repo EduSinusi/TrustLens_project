@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File
+# app.py
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -11,7 +12,7 @@ import numpy as np
 import time
 from threading import Thread
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, auth
 import os
 from url_processing.url_processor import process_and_block_url
 from real_time_url_extractor import extract_url_from_qr_code, extract_url_from_text, preprocess_image
@@ -35,9 +36,11 @@ current_frame = None
 latest_url = None
 latest_safety_status = None
 latest_block_status = None
+latest_gemini_summary = None  # Added to store Gemini summary
 webcam_error = None
 current_camera_index = 0
 webcam_thread = None
+current_user_uid = None
 limiter = Limiter(key_func=get_remote_address)
 
 def create_error_frame(message):
@@ -62,7 +65,7 @@ def initialize_webcam(camera_index, max_retries=3):
     return None
 
 def generate_frames(camera_index=0):
-    global current_frame, webcam_running, scanning_active, latest_url, latest_safety_status, latest_block_status, webcam_error, evaluating_url
+    global current_frame, webcam_running, scanning_active, latest_url, latest_safety_status, latest_block_status, latest_gemini_summary, webcam_error, evaluating_url, current_user_uid
     cap = initialize_webcam(camera_index)
     if not cap:
         webcam_error = "No webcam available"
@@ -85,6 +88,7 @@ def generate_frames(camera_index=0):
                 latest_url = None
                 latest_safety_status = None
                 latest_block_status = None
+                latest_gemini_summary = None  # Reset Gemini summary
                 
                 url = extract_url_from_qr_code(frame)
                 if not url:
@@ -95,7 +99,8 @@ def generate_frames(camera_index=0):
                     logger.log_text(f"URL detected: {url}", severity="INFO")
                     latest_url = url
                     evaluating_url = True
-                    latest_safety_status, latest_block_status = process_and_block_url(url)
+                    # Unpack all three values returned by process_and_block_url
+                    latest_safety_status, latest_block_status, latest_gemini_summary = process_and_block_url(url, user_uid=current_user_uid)
                     evaluating_url = False
                     scanning_active = False
                     cv2.putText(frame, f"URL: {url}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -108,6 +113,7 @@ def generate_frames(camera_index=0):
         webcam_running = False
         scanning_active = False
         evaluating_url = False
+        current_user_uid = None
         logger.log_text("Webcam released", severity="INFO")
 
 @asynccontextmanager
@@ -134,6 +140,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Dependency to verify Firebase ID token
+async def get_current_user(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split("Bearer ")[1]
+    try:
+        decoded_token = auth.verify_id_token(token)
+        return decoded_token["uid"]
+    except Exception as e:
+        logger.log_struct({
+            "message": "Invalid or expired token",
+            "error": str(e)
+        }, severity="ERROR")
+        return None
 
 @app.get("/video_feed/{camera_index}")
 async def video_feed(camera_index: int):
@@ -167,7 +189,7 @@ async def switch_camera(camera_index: int):
 
 @app.get("/stop_webcam")
 async def stop_webcam():
-    global webcam_running, webcam_thread, latest_url, latest_safety_status, latest_block_status, scanning_active
+    global webcam_running, webcam_thread, latest_url, latest_safety_status, latest_block_status, latest_gemini_summary, scanning_active, current_user_uid
     if not webcam_running:
         logger.log_text("Webcam is already stopped", severity="INFO")
         return {"message": "Webcam is already stopped"}
@@ -179,6 +201,8 @@ async def stop_webcam():
     latest_url = None
     latest_safety_status = None
     latest_block_status = None
+    latest_gemini_summary = None  # Reset Gemini summary
+    current_user_uid = None
     logger.log_text("Webcam stopped successfully and scan results cleared", severity="INFO")
     return {"message": "Webcam stopped successfully and scan results cleared"}
 
@@ -195,34 +219,38 @@ async def start_webcam():
     return {"message": "Webcam started successfully"}
 
 @app.get("/start_scan")
-async def start_scan():
-    global scanning_active, latest_url, latest_safety_status, latest_block_status
+async def start_scan(user_uid: str = Depends(get_current_user)):
+    global scanning_active, latest_url, latest_safety_status, latest_block_status, latest_gemini_summary, current_user_uid
     if not webcam_running:
         logger.log_text("Attempted to start scan but webcam is not running", severity="ERROR")
         raise HTTPException(status_code=400, detail="Webcam is not running")
     latest_url = None
     latest_safety_status = None
     latest_block_status = None
+    latest_gemini_summary = None  # Reset Gemini summary
     scanning_active = True
-    logger.log_text("Scanning started", severity="INFO")
+    current_user_uid = user_uid
+    logger.log_text(f"Scanning started for user_uid: {user_uid}", severity="INFO")
     return {"message": "Scanning started"}
 
 @app.get("/stop_scan")
 async def stop_scan():
-    global scanning_active
+    global scanning_active, current_user_uid
     scanning_active = False
+    current_user_uid = None
     logger.log_text("Scanning stopped", severity="INFO")
     return {"message": "Scanning stopped"}
 
 @app.get("/get_url")
-async def get_url():
-    global latest_url, latest_safety_status, latest_block_status
+async def get_url(user_uid: str = Depends(get_current_user)):
+    global latest_url, latest_safety_status, latest_block_status, latest_gemini_summary
     if latest_url and latest_safety_status:
         logger.log_text(f"Returning URL info: {latest_url}", severity="INFO")
         return {
             "url": latest_url,
             "safety_status": latest_safety_status,
             "block_status": latest_block_status,
+            "gemini_summary": latest_gemini_summary,  # Include Gemini summary
             "evaluating": evaluating_url
         }
     logger.log_text("No URL detected yet", severity="INFO")
@@ -230,6 +258,7 @@ async def get_url():
         "url": "",
         "safety_status": {"overall": "No URL detected yet", "details": {}},
         "block_status": None,
+        "gemini_summary": "No summary available",  # Default value
         "evaluating": evaluating_url
     }
 
@@ -241,14 +270,14 @@ async def get_webcam_status():
 
 @app.post("/scan_url")
 @limiter.limit("10/minute")
-async def scan_url(request: Request):
+async def scan_url(request: Request, user_uid: str = Depends(get_current_user)):
     data = await request.json()
     if not data or 'url' not in data:
         logger.log_text("No URL provided in scan_url request", severity="ERROR")
         raise HTTPException(status_code=400, detail="No URL provided")
     url = data['url']
     try:
-        safety_status, block_status, gemini_summary = process_and_block_url(url)
+        safety_status, block_status, gemini_summary = process_and_block_url(url, user_uid=user_uid)
         if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
             safety_status = {
                 "overall": "Error",
@@ -257,6 +286,7 @@ async def scan_url(request: Request):
         logger.log_struct({
             "message": "Scan URL completed",
             "url": url,
+            "user_uid": user_uid,
             "safety_status": safety_status,
             "block_status": block_status,
             "gemini_summary": gemini_summary
@@ -279,6 +309,7 @@ async def scan_url(request: Request):
         logger.log_struct({
             "message": "Scan URL failed",
             "url": url,
+            "user_uid": user_uid,
             "error": str(e)
         }, severity="ERROR")
         return error_response
@@ -367,7 +398,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 @app.post("/scan_image")
-async def scan_image(file: UploadFile = File(...)):
+async def scan_image(file: UploadFile = File(...), user_uid: str = Depends(get_current_user)):
     filepath = os.path.join(UPLOAD_FOLDER, file.filename)
     with open(filepath, "wb") as buffer:
         buffer.write(await file.read())
@@ -387,7 +418,7 @@ async def scan_image(file: UploadFile = File(...)):
                 "safety_status": {"overall": "No URL detected in the image", "details": {}},
                 "block_status": None
             }
-        safety_status, block_status = process_and_block_url(url)
+        safety_status, block_status, gemini_summary = process_and_block_url(url, user_uid=user_uid)
         if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
             safety_status = {
                 "overall": "Error",
@@ -396,13 +427,16 @@ async def scan_image(file: UploadFile = File(...)):
         logger.log_struct({
             "message": "Scan Image completed",
             "url": url,
+            "user_uid": user_uid,
             "safety_status": safety_status,
-            "block_status": block_status
+            "block_status": block_status,
+            "gemini_summary": gemini_summary
         }, severity="INFO")
         return {
             "url": url,
             "safety_status": safety_status,
-            "block_status": block_status
+            "block_status": block_status,
+            "gemini_summary": gemini_summary
         }
     except Exception as e:
         error_response = {
@@ -416,7 +450,8 @@ async def scan_image(file: UploadFile = File(...)):
         logger.log_struct({
             "message": "Scan Image failed",
             "error": str(e),
-            "filename": file.filename
+            "filename": file.filename,
+            "user_uid": user_uid
         }, severity="ERROR")
         return error_response
     finally:

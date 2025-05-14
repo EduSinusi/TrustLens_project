@@ -39,23 +39,27 @@ def generate_gemini_summary(domain_security_result: dict) -> dict:
     try:
         # Convert the domain security result to a string for the prompt
         result_str = json.dumps(domain_security_result, indent=2)
+
+        result_str = json.dumps(domain_security_result, indent=2)
+        logger.log_struct({
+            "message": "Generated result_str for Gemini prompt",
+            "result_str": result_str,
+            "is_empty": len(result_str.strip()) == 0
+        }, severity="INFO")
         
         # Create a prompt for Gemini
-        prompt = (
-            """You are an AI-powered cybersecurity assistant helping everyday users evaluate whether a website is safe to visit.
+        prompt = f"""You are an AI-powered cybersecurity assistant helping everyday users evaluate whether a website is safe to visit.
 
 Below is a technical domain security report. Analyze it and provide:
-1. A concise summary (2–3 sentences) about the domain's overall safety
-2. Any major risks in simple language
-3. A final recommendation: whether the user can safely browse the site or should proceed with caution (e.g., avoid logging in, or don't visit)
+A recommendation: whether the user can safely browse the site or should proceed with caution (e.g., avoid logging in, or don't visit)
 
 Avoid technical jargon, and keep the tone clear, calm, and helpful.
 
+IMPORTANT: Produce the full output without truncating mid-sentence (keep it to 150 tokens limit only).
+
 Security Report:
 {result_str}
-
-Summary:"""
-        )
+"""
 
         # Initialize the Gemini model
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -64,7 +68,7 @@ Summary:"""
         generation_config = {
             "temperature": 0.7,
             "top_p": 0.9,
-            "max_output_tokens": 150
+            "max_output_tokens": 150,      # ↑ double the budget
         }
 
         # Generate the summary

@@ -7,6 +7,7 @@ import time
 import google.cloud.logging
 import requests
 import uuid
+import hashlib
 
 # Initialize Google Cloud Logging
 client = google.cloud.logging.Client.from_service_account_json(
@@ -35,6 +36,7 @@ def get_gemini_summary(safety_status: dict) -> str:
     Returns the summary as a string, or an error message if the call fails.
     """
     try:
+        
         response = requests.post(
             "http://localhost:5001/gemini/summarize",
             json={"domain_security_result": safety_status},
@@ -385,31 +387,36 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_sum
             "error": str(e)
         }, severity="ERROR")
 
-def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str, str]:
+def process_and_block_url(url: str, user_uid: str = None, max_attempts: int = 2) -> tuple[dict, str, str]:
     safety_status, found, gemini_summary = check_url_in_firestore(url)
     
     if not found:
         safety_status, gemini_summary = evaluate_url(url)
-        store_url_in_firestore(url, safety_status, gemini_summary)
+        store_url_in_firestore(url, safety_status, gemini_summary, user_uid)
     
+    attempt = 0
     while safety_status["overall"] == "Unknown" and attempt < max_attempts:
         logger.log_text(f"Status is 'Unknown' for {url}, re-evaluating (attempt {attempt + 1}/{max_attempts})", severity="INFO")
         time.sleep(10)
         safety_status, gemini_summary = evaluate_url(url)
-        store_url_in_firestore(url, safety_status, gemini_summary)
+        store_url_in_firestore(url, safety_status, gemini_summary, user_uid)
         attempt += 1
     
     block_status = None
     if safety_status["overall"] in ["Unsafe"]:
-        existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
-        if existing:
-            block_status = "already_blocked"
-            logger.log_text(f"URL {url} already blocked in Firestore", severity="INFO")
+        if not user_uid:
+            block_status = "no_uid"
+            logger.log_text(f"Cannot block URL {url} due to missing user_uid", severity="INFO")
         else:
-            blocked, status = block_unsafe_website(url)
-            block_status = status if status else "error"
-            if blocked:
-                store_blocked_website_in_firestore(url, safety_status, gemini_summary)
+            existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
+            if existing:
+                block_status = "already_blocked"
+                logger.log_text(f"URL {url} already blocked in Firestore", severity="INFO")
+            else:
+                blocked, status = block_unsafe_website(url)
+                block_status = status if status else "error"
+                if blocked:
+                    store_blocked_website_in_firestore(url, safety_status, gemini_summary)
         
         if not safety_status.get("details"):
             safety_status["details"] = {}
@@ -417,7 +424,7 @@ def process_and_block_url(url: str, max_attempts: int = 2) -> tuple[dict, str, s
             safety_status["details"]["url_info"] = {}
         safety_status["details"]["url_info"]["block_status"] = block_status
     
-    store_url_in_firestore(url, safety_status, gemini_summary)
+    store_url_in_firestore(url, safety_status, gemini_summary, user_uid)
     
     return safety_status, block_status, gemini_summary
 

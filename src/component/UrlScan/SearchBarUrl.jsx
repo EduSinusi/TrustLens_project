@@ -13,7 +13,7 @@ const UrlSearchBar = () => {
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const navigate = useNavigate();
   const navMenuRef = useRef(null);
-  const { fetchWithAuth, error: authError } = useAuth();
+  const { user, fetchWithAuth, error: authError } = useAuth();
 
   React.useEffect(() => {
     const handleClickOutside = (event) => {
@@ -44,17 +44,18 @@ const UrlSearchBar = () => {
     }
 
     try {
+      const idToken = user ? await user.getIdToken() : null;
       const response = await fetchWithAuth("http://localhost:8000/scan_url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(idToken && { Authorization: `Bearer ${idToken}` }),
         },
         body: JSON.stringify({ url }),
       });
-
+  
       const data = await response.json();
       if (response.ok) {
-        console.log("Backend Response:", data);
         setResult({
           url: data.url,
           safetyStatus: data.safety_status,
@@ -65,7 +66,7 @@ const UrlSearchBar = () => {
         setError(data.detail || "An error occurred while checking the URL.");
       }
     } catch (err) {
-      setError(authError || "Failed to connect to the backend. Please ensure the server is running.");
+      setError(authError || "Failed to connect to the backend.");
       console.error("Fetch error:", err);
     } finally {
       setLoading(false);
@@ -184,6 +185,7 @@ const UrlSearchBar = () => {
               isAnalysisOpen={isAnalysisOpen}
               toggleAnalysis={toggleAnalysis}
               loading={loading}
+              userId={user?.uid || ""}
             />
           </div>
         )}
