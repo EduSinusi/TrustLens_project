@@ -12,6 +12,8 @@ import UrlScan from "./component/UrlScan/WebcamScan";
 import UrlSearchBar from "./component/UrlScan/SearchBarUrl";
 import ImageExtract from "./component/UrlScan/ImageExtract"
 import ScanHistory from "./pages/ScanHistory";
+import InfoCenter from "./pages/InfoCenter";
+import GeminiChat from "./pages/GeminiChatbot";
 import PipWindow from "./component/UrlScan/Components/PipWindow/PipWindow";
 import NotFoundPage from "./pages/NotFoundPage";
 import Dashboard from "./pages/Dashboard";
@@ -39,6 +41,8 @@ const App = () => {
           <Route path="/url-scan/pip-window" element={<PipWindow />} />
           <Route path="/url-scan/search" element={<UrlSearchBar />} />
           <Route path="/url-scan/image" element={<ImageExtract />} />
+          <Route path="/support/info" element={<InfoCenter />} />
+          <Route path="/support/chatbot" element={<GeminiChat />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/" element={<ScanHistory />} />
           {/* <Route path="/support" element={<Support />} /> 
