@@ -5,7 +5,8 @@ import {
   LinkIcon,
   ChartBarIcon,
   ClockIcon,
-  ChatBubbleLeftIcon,
+  UserGroupIcon,
+  QuestionMarkCircleIcon
 } from "@heroicons/react/24/outline";
 import { ChevronFirst, ChevronLast } from "lucide-react";
 import ClickOutside from "./ClickOutside";
@@ -37,6 +38,12 @@ const Sidebar = ({ expanded, setExpanded }) => {
     { text: "Search Bar", to: "/url-scan/search" },
     { text: "External Webcam", to: "/url-scan/webcam" },
     { text: "Upload Image", to: "/url-scan/image" },
+  ];
+
+  // Define dropdown items for Support
+  const supportItems = [
+    { text: "Chatbot Assistance", to: "/support/chatbot" },
+    { text: "TrustLens Info Center", to: "/support/info" },
   ];
 
   return (
@@ -75,6 +82,7 @@ const Sidebar = ({ expanded, setExpanded }) => {
                 text="Home"
                 to="/home"
               />
+              
               <SidebarItemWithDropdown
                 icon={<LinkIcon className="w-8 h-8" />}
                 text="URL Scan"
@@ -86,14 +94,14 @@ const Sidebar = ({ expanded, setExpanded }) => {
                 to="/dashboard"
               />
               <SidebarItem
-                icon={<ClockIcon className="w-8 h-8" />}
-                text="Scan History"
-                to="/scan-history"
+                icon={<QuestionMarkCircleIcon className="w-8 h-8" />} // Replace with appropriate quiz icon
+                text="Cybersecurity Quiz"
+                to="/cybersecurity-quiz"
               />
-              <SidebarItem
-                icon={<ChatBubbleLeftIcon className="w-8 h-8" />}
+              <SidebarItemWithDropdown
+                icon={<UserGroupIcon className="w-8 h-8" />}
                 text="Support"
-                to="/support"
+                items={supportItems}
               />
             </ul>
           </SidebarContext.Provider>
