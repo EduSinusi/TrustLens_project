@@ -7,6 +7,8 @@ import {
   MagnifyingGlassIcon,
   VideoCameraIcon,
   PhotoIcon,
+  ChatBubbleLeftIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/solid";
 
 const SidebarItemWithDropdown = ({ icon, text, items }) => {
@@ -15,12 +17,10 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
   const [isOpen, setIsOpen] = useState(false);
   const active = items.some((item) => location.pathname === item.to);
 
-  // Reset selection when clicking main item
   const handleMainClick = () => {
     if (expanded) {
       setIsOpen(!isOpen);
       if (!isOpen) {
-        // When opening, deselect by navigating to parent route
         window.history.pushState({}, "", "/url-scan");
       }
     }
@@ -42,7 +42,7 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
             active ? "text-blue-800" : "text-gray-900 group-hover:text-blue-600"
           } transition-colors duration-300`}
         >
-          {icon}{" "}
+          {icon}
         </div>
         <span
           className={`overflow-hidden transition-all ${
@@ -79,14 +79,18 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
         <ul className="ml-8 mt-1 space-y-1">
           {items.map((item, index) => {
             const isSelected = location.pathname === item.to;
-            const DefaultIcon =
+            const ItemIcon =
               item.text === "Search Bar"
                 ? MagnifyingGlassIcon
                 : item.text === "External Webcam"
                 ? VideoCameraIcon
                 : item.text === "Upload Image"
                 ? PhotoIcon
-                : ChevronRightIcon; // Provide a default fallback icon
+                : item.text === "Chatbot Assistance"
+                ? ChatBubbleLeftIcon
+                : item.text === "TrustLens Info Center"
+                ? InformationCircleIcon
+                : ChevronRightIcon; // Default fallback icon
 
             return (
               <li key={index}>
@@ -102,7 +106,7 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
                     {isSelected ? (
                       <ChevronRightIcon className="w-5 h-5 opacity-100" />
                     ) : (
-                      <DefaultIcon className="w-5 h-5 opacity-100" />
+                      <ItemIcon className="w-5 h-5 opacity-100" />
                     )}
                   </span>
                   {item.text}

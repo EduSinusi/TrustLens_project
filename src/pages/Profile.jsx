@@ -18,7 +18,6 @@ export default function Profile() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Fetch user data on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
@@ -32,13 +31,11 @@ export default function Profile() {
           return;
         }
 
-        // Get basic user info from Firebase Authentication
         const userInfo = {
           email: user.email || "",
           photoURL: user.photoURL || "",
         };
 
-        // Fetch additional user info from Firestore
         const userDocRef = doc(db, "UserInformation", user.uid);
         const userDoc = await getDoc(userDocRef);
 
@@ -64,7 +61,6 @@ export default function Profile() {
     fetchUserData();
   }, [navigate]);
 
-  // Handle logout
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -75,66 +71,62 @@ export default function Profile() {
     }
   };
 
-  if (loading) {
-          <Spinner />
-  }
-
   return (
-    <div className="bg-gradient-to-b from-sky-500 to-gray-200 h-full flex items-center justify-center">
-      <div className="flex w-full max-w-[1200px] mx-auto">
-        {/* Left side with logo */}
-        <div className="w-[50%] flex items-center justify-center opacity-70">
-          <div className="text-center">
-            <img
-              src="./trustlens-logo.png"
-              alt="TrustLens Logo"
-              className="w-120 h-120 mr-60"
-            />
-          </div>
+    <div className="h-full bg-gradient-to-br bg-gray-100 flex items-center justify-center font-sans">
+      <div className="flex w-full h-[450px] max-w-4xl bg-white/30 backdrop-blur-lg rounded-2xl shadow-xl overflow-hidden">
+        {/* Left Side - Logo */}
+        <div className="w-1/3 p-6 flex items-center justify-center bg-gradient-to-b from-blue-200 to-blue-300">
+          <img
+            src="./trustlens-logo.png"
+            alt="TrustLens Logo"
+            className="w-2/3 max-w-[200px] h-auto opacity-80 hover:opacity-100 transition-opacity duration-300"
+          />
         </div>
 
-        {/* Right side with profile details */}
-        <div className="w-[45%] mt-4 py-10 px-8 rounded-xl shadow-xl border-1 border-gray-500">
-          <h1 className="text-4xl font-bold text-gray-800 mb-10 text-center">
+        {/* Right Side - Profile Details */}
+        <div className="w-2/3 p-8 flex flex-col justify-center">
+          <h1 className="text-xl font-semibold text-gray-800 mb-4 text-center">
             My Profile
           </h1>
 
           {/* Profile Picture and Name */}
-          <div className="flex flex-col items-center justify-center mb-8">
-            {userData.photoURL ? (
-              <img
-                src={userData.photoURL}
-                alt="Profile"
-                className="w-24 h-24 rounded-full object-cover border-2 border-gray-700 mb-4"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 mb-4">
-                No Photo
-              </div>
-            )}
-            <h2 className="text-2xl font-semibold text-gray-800">
+          <div className="flex flex-col items-center justify-center mb-4">
+            <div className="relative group">
+              {userData.photoURL ? (
+                <img
+                  src={userData.photoURL}
+                  alt="Profile"
+                  className="w-14 h-14 rounded-full object-cover border-2 border-white/50 shadow-sm group-hover:scale-105 transition-transform duration-200"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-full bg-gray-100/50 flex items-center justify-center text-gray-500 text-xs border-2 border-white/50">
+                  No Photo
+                </div>
+              )}
+            </div>
+            <h2 className="text-lg font-medium text-gray-800 mt-2">
               {userData.firstName} {userData.lastName}
             </h2>
           </div>
 
           {/* Profile Details */}
-          <div className="space-y-5">
+          <div className="space-y-2">
             {/* Email */}
             <div>
-              <label className="block text-lg font-medium mb-2 ml-1 text-shadow-sm">
-                E-mail Address:{" "}
-                <p className="w-[90%] rounded-lg text-gray-800">
-                  {userData.email || "Not provided"}
-                </p>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
               </label>
+              <p className="w-full p-1.5 border border-gray-200/50 rounded-md bg-white/50 text-gray-800 text-sm">
+                {userData.email || "Not provided"}
+              </p>
             </div>
 
             {/* Joined Date */}
             <div>
-              <label className="block text-lg font-medium mb-2 ml-1 text-shadow-sm">
-                Joined On:
+              <label className="block text-sm font-medium text-gray-700">
+                Joined On
               </label>
-              <p className="w-full p-2 border-[2px] border-gray-700 rounded-lg bg-gray-200 text-gray-800">
+              <p className="w-full p-1.5 border border-gray-200/50 rounded-md bg-white/50 text-gray-800 text-sm">
                 {userData.createdAt
                   ? new Date(userData.createdAt).toLocaleDateString()
                   : "Not provided"}
@@ -144,20 +136,20 @@ export default function Profile() {
 
           {/* Error Message */}
           {error && (
-            <p className="text-red-500 text-sm text-center mt-4">{error}</p>
+            <p className="text-red-400 text-[10px] text-center mt-3">{error}</p>
           )}
 
           {/* Edit Profile and Logout Buttons */}
-          <div className="flex justify-center space-x-4 mt-8">
+          <div className="flex justify-center space-x-3 mt-6">
             <Link
               to="/edit-profile"
-              className="w-40 py-1.5 bg-gray-600 text-[18px] text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none text-center"
+              className="w-1/3 py-1.5 bg-indigo-500 text-white font-medium rounded-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all duration-200 text-sm text-center"
             >
               Edit Profile
             </Link>
             <button
               onClick={handleLogout}
-              className="w-40 py-1.5 bg-red-600 text-[18px] text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none"
+              className="w-1/3 py-1.5 bg-red-500 text-white font-medium rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition-all duration-200 text-sm"
             >
               Log Out
             </button>
