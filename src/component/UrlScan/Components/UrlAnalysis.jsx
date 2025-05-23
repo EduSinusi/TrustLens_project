@@ -60,7 +60,10 @@ const UrlAnalysis = ({
       },
     };
     return (
-      statusMap[blockStatus] || { text: "Not Blocked", className: "text-gray-600" }
+      statusMap[blockStatus] || {
+        text: "Not Blocked",
+        className: "text-gray-600",
+      }
     );
   };
 
@@ -157,7 +160,8 @@ const UrlAnalysis = ({
                   >
                     {blockStatusDisplay.text}
                   </span>
-                  {blockStatusDisplay.text === "Not Blocked - Login Required" && (
+                  {blockStatusDisplay.text ===
+                    "Not Blocked - Login Required" && (
                     <span className="text-sm text-yellow-600 ml-2">
                       (Please log in to enable blocking)
                     </span>
@@ -185,9 +189,13 @@ const UrlAnalysis = ({
 
             {!isUrlNonExistent && safetyStatus.details?.url_info && userId && (
               <div className="mt-2 flex justify-center">
+                <span className="text-gray-700 text-md font-semibold mr-3 flex justify-center items-center">
+                  {" "}
+                  Detected some suspicious behaviour?
+                </span>
                 <button
                   onClick={() => setIsFeedbackPopupOpen(true)}
-                  className="flex items-center px-6 py-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none"
+                  className="flex items-center px-5 py-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none"
                 >
                   <FaPaperPlane className="mr-2" />
                   Submit Feedback

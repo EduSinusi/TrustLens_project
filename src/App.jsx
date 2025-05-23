@@ -15,6 +15,7 @@ import ScanHistory from "./pages/ScanHistory";
 import InfoCenter from "./pages/InfoCenter";
 import GeminiChat from "./pages/GeminiChatbot";
 import PipWindow from "./component/UrlScan/Components/PipWindow/PipWindow";
+import Quiz from "./pages/Quiz";
 import NotFoundPage from "./pages/NotFoundPage";
 import Dashboard from "./pages/Dashboard";
 
@@ -43,6 +44,7 @@ const App = () => {
           <Route path="/url-scan/image" element={<ImageExtract />} />
           <Route path="/support/info" element={<InfoCenter />} />
           <Route path="/support/chatbot" element={<GeminiChat />} />
+          <Route path="/cybersecurity-quiz" element={<Quiz />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/" element={<ScanHistory />} />
           {/* <Route path="/support" element={<Support />} /> 

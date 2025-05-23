@@ -41,11 +41,6 @@ def generate_gemini_summary(domain_security_result: dict) -> dict:
         result_str = json.dumps(domain_security_result, indent=2)
 
         result_str = json.dumps(domain_security_result, indent=2)
-        logger.log_struct({
-            "message": "Generated result_str for Gemini prompt",
-            "result_str": result_str,
-            "is_empty": len(result_str.strip()) == 0
-        }, severity="INFO")
         
         # Create a prompt for Gemini
         prompt = f"""You are an AI-powered cybersecurity assistant helping everyday users evaluate whether a website is safe to visit.

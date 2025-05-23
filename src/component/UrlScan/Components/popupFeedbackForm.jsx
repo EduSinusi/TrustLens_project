@@ -1,8 +1,9 @@
-// src/components/FeedbackFormPopup.jsx
 import React, { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
-import { auth, storage } from "../../../firebase/firebase";
+import { auth, storage, db } from "../../../firebase/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth"; // Import for auth state listener
 import { toast } from "react-toastify";
 
 const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
@@ -12,9 +13,23 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const popupRef = useRef(null); // Added useRef for click-outside detection
+  const popupRef = useRef(null);
+  const [userId, setUserId] = useState(null); // Track authenticated user ID
 
-  // Handle screenshot input change (preview and validation)
+  // Monitor authentication state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("Authenticated user:", user.uid);
+        setUserId(user.uid);
+      } else {
+        console.log("No authenticated user");
+        setUserId(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleScreenshotChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -36,7 +51,6 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
     }
   };
 
-  // Handle click outside to close the popup
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (popupRef.current && !popupRef.current.contains(event.target)) {
@@ -53,18 +67,22 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
     };
   }, [isOpen, onClose]);
 
-  // Handle form submission with screenshot upload
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    if (!userId) {
+      setError("Please log in to submit feedback.");
+      setLoading(false);
+      toast.error("Please log in to submit feedback.");
+      return;
+    }
+
     try {
       let screenshotUrl = null;
 
       if (screenshot) {
-        const user = auth.currentUser;
-        const userId = user ? user.uid : "anonymous";
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const storagePath = `feedback-screenshots/${userId}/${encodeURIComponent(
           url
@@ -81,14 +99,30 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
         url,
         feedbackType,
         comments,
-        screenshotUrl,
-        timestamp: new Date().toISOString(),
-        userId: auth.currentUser ? auth.currentUser.uid : null,
+        timestamp: Timestamp.fromDate(new Date()),
+        userId,
       };
 
-      console.log("Feedback submitted:", feedbackData);
-      toast.success("Feedback submitted successfully!");
+      if (screenshotUrl) {
+        feedbackData.screenshotUrl = screenshotUrl;
+      }
 
+      console.log("Submitting feedback data:", feedbackData);
+
+      // Store in user-specific collection: users/{userId}/user_feedback
+      const userFeedbackCollectionRef = collection(
+        db,
+        `users/${userId}/user_feedback`
+      );
+      await addDoc(userFeedbackCollectionRef, feedbackData);
+      console.log("Successfully wrote to users/${userId}/user_feedback");
+
+      // Store in global collection: UserFeedback
+      const globalFeedbackCollectionRef = collection(db, "UserFeedback");
+      await addDoc(globalFeedbackCollectionRef, feedbackData);
+      console.log("Successfully wrote to UserFeedback");
+
+      toast.success("Feedback submitted successfully!");
       setFeedbackType("");
       setComments("");
       setScreenshot(null);
@@ -103,7 +137,6 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
     }
   };
 
-  // Handle cancel
   const handleCancel = () => {
     setFeedbackType("");
     setComments("");
@@ -116,23 +149,22 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 transition-opacity duration-300">
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-900/70 z-50 transition-opacity duration-300">
       <div
-        ref={popupRef} // Attach popupRef to the popup container
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg transform transition-all duration-300 scale-100 hover:scale-[1.01]"
+        ref={popupRef}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 hover:scale-[1.02]"
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-center py-3 rounded-t-xl">
-          <h3 className="text-xl font-semibold">Submit Feedback</h3>
+        <div className="bg-gradient-to-r from-sky-600 to-blue-600 text-white text-center py-4 rounded-t-2xl animate-pulse-once">
+          <h3 className="text-2xl font-bold tracking-wide">
+            Submit Your Feedback
+          </h3>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5 p-6">
-          {/* URL Field */}
+        <form onSubmit={handleSubmit} className="space-y-6 p-4">
           <div>
             <label
               htmlFor="url"
-              className="ml-1 block text-md font-medium text-gray-700"
+              className="block text-lg font-semibold text-gray-700 ml-1"
             >
               URL
             </label>
@@ -140,16 +172,15 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               id="url"
               type="text"
               value={url}
-              className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed px-3 py-2 focus:outline-none"
+              className="mt-2 block w-full rounded-lg border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
               disabled
             />
           </div>
 
-          {/* Feedback Type */}
           <div>
             <label
               htmlFor="feedbackType"
-              className="block text-md ml-1 font-medium text-gray-700"
+              className="block text-lg font-semibold text-gray-700 ml-1"
             >
               Feedback Type
             </label>
@@ -157,11 +188,11 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               id="feedbackType"
               value={feedbackType}
               onChange={(e) => setFeedbackType(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-150 ease-in-out"
+              className="mt-2 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 transition duration-200 ease-in-out hover:bg-gray-50"
               required
               disabled={loading}
             >
-              <option value="" disabled>
+              <option value="" disabled className="text-gray-400">
                 Select feedback type
               </option>
               <option value="False Positive">
@@ -175,11 +206,10 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
             </select>
           </div>
 
-          {/* Comments */}
           <div>
             <label
               htmlFor="comments"
-              className="block text-md ml-1 font-medium text-gray-700"
+              className="block text-lg font-semibold text-gray-700 ml-1"
             >
               Comments
             </label>
@@ -187,19 +217,18 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               id="comments"
               value={comments}
               onChange={(e) => setComments(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 px-3 py-2 text-gray-700 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-150 ease-in-out"
-              rows={4}
-              placeholder="Describe the issue..."
+              className="mt-2 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 transition duration-200 ease-in-out hover:bg-gray-50 resize-y"
+              rows={5}
+              placeholder="Describe the issue or suggestion..."
               required
               disabled={loading}
             />
           </div>
 
-          {/* Screenshot Upload */}
           <div>
             <label
               htmlFor="screenshot"
-              className="block text-md ml-1 font-medium text-gray-700"
+              className="block text-lg font-semibold text-gray-700 ml-1"
             >
               Screenshot (Optional)
             </label>
@@ -208,40 +237,38 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               type="file"
               accept="image/*"
               onChange={handleScreenshotChange}
-              className="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:file:bg-gray-200 disabled:file:text-gray-500 transition duration-150 ease-in-out"
+              className="mt-2 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:file:bg-gray-200 disabled:file:text-gray-500 transition duration-200 ease-in-out"
               disabled={loading}
             />
             {previewUrl && (
-              <div className="mt-3">
+              <div className="mt-4">
                 <img
                   src={previewUrl}
                   alt="Screenshot preview"
-                  className="max-w-full h-auto rounded-md shadow-md border border-gray-200"
+                  className="max-w-full h-auto rounded-lg shadow-md border border-gray-300 transition duration-200 hover:shadow-lg"
                 />
               </div>
             )}
           </div>
 
-          {/* Error Message */}
           {error && (
-            <p className="text-sm text-white bg-red-500 px-3 py-2 rounded-md animate-fade-in">
+            <p className="text-sm text-white bg-red-600 px-4 py-2 rounded-lg animate-fade-in-out">
               {error}
             </p>
           )}
 
-          {/* Buttons */}
-          <div className="flex justify-end space-x-3 pt-2">
+          <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-md shadow-sm hover:from-gray-300 hover:to-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 transition duration-150 ease-in-out"
+              className="px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-gray-100 rounded-lg shadow-md font-semibold hover:from-gray-400 hover:to-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-200 disabled:opacity-50"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md shadow-sm hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition duration-150 ease-in-out"
+              className="px-6 py-2 bg-gradient-to-r from-sky-600 to-blue-600 text-white font-semibold rounded-lg shadow-md hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 disabled:opacity-50"
               disabled={loading}
             >
               {loading ? "Submitting..." : "Submit"}

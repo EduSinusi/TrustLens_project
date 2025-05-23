@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Lottie from "lottie-react";
+import animationLandingPage from "../../src/assets/Animation - chatbot (2).json";
 
 export default function GeminiChat() {
   const [input, setInput] = useState("");
@@ -74,8 +76,14 @@ export default function GeminiChat() {
   return (
     <div className="h-full bg-sky-100 flex items-center justify-center p-8 font-poppins">
       <div className="w-[1300px] h-[630px] bg-white backdrop-blur-xl rounded-2xl shadow-2xl flex flex-col px-0 pt-2 pb-4 border-teal-200/30">
+        <Lottie
+          animationData={animationLandingPage}
+          loop={true}
+          playbackRate={0.5}
+          style={{ width: 55, height: 55, position: "absolute", top: 14, right: 805 }}
+        />
         <h1 className="text-3xl font-bold text-center mb-1 mt-3 bg-sky-700 text-transparent bg-clip-text">
-          💬 TrustLens AI Chatbot
+          TrustLens AI Chatbot
         </h1>
         <p className="text-gray-700 mb-1 text-center text-lg leading-relaxed opacity-90">
           Ask me anything about cybersecurity for instant, helpful advice!
