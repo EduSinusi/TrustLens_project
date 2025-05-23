@@ -14,9 +14,10 @@ from threading import Thread
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import os
-from url_processing.url_processor import process_and_block_url
+from url_processing.url_processor import process_and_block_url, store_blocked_website_in_firestore
 from real_time_url_extractor import extract_url_from_qr_code, extract_url_from_text, preprocess_image
 from url_processing.virustotal import get_virustotal_full_result, check_virustotal
+from website_blocker import block_unsafe_website
 import google.cloud.logging
 from google.cloud.logging_v2.handlers import CloudLoggingHandler
 import logging
@@ -36,7 +37,7 @@ current_frame = None
 latest_url = None
 latest_safety_status = None
 latest_block_status = None
-latest_gemini_summary = None  # Added to store Gemini summary
+latest_gemini_summary = None
 webcam_error = None
 current_camera_index = 0
 webcam_thread = None
@@ -88,7 +89,7 @@ def generate_frames(camera_index=0):
                 latest_url = None
                 latest_safety_status = None
                 latest_block_status = None
-                latest_gemini_summary = None  # Reset Gemini summary
+                latest_gemini_summary = None
                 
                 url = extract_url_from_qr_code(frame)
                 if not url:
@@ -99,7 +100,6 @@ def generate_frames(camera_index=0):
                     logger.log_text(f"URL detected: {url}", severity="INFO")
                     latest_url = url
                     evaluating_url = True
-                    # Unpack all three values returned by process_and_block_url
                     latest_safety_status, latest_block_status, latest_gemini_summary = process_and_block_url(url, user_uid=current_user_uid)
                     evaluating_url = False
                     scanning_active = False
@@ -141,7 +141,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependency to verify Firebase ID token
 async def get_current_user(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -201,7 +200,7 @@ async def stop_webcam():
     latest_url = None
     latest_safety_status = None
     latest_block_status = None
-    latest_gemini_summary = None  # Reset Gemini summary
+    latest_gemini_summary = None
     current_user_uid = None
     logger.log_text("Webcam stopped successfully and scan results cleared", severity="INFO")
     return {"message": "Webcam stopped successfully and scan results cleared"}
@@ -227,7 +226,7 @@ async def start_scan(user_uid: str = Depends(get_current_user)):
     latest_url = None
     latest_safety_status = None
     latest_block_status = None
-    latest_gemini_summary = None  # Reset Gemini summary
+    latest_gemini_summary = None
     scanning_active = True
     current_user_uid = user_uid
     logger.log_text(f"Scanning started for user_uid: {user_uid}", severity="INFO")
@@ -250,7 +249,7 @@ async def get_url(user_uid: str = Depends(get_current_user)):
             "url": latest_url,
             "safety_status": latest_safety_status,
             "block_status": latest_block_status,
-            "gemini_summary": latest_gemini_summary,  # Include Gemini summary
+            "gemini_summary": latest_gemini_summary,
             "evaluating": evaluating_url
         }
     logger.log_text("No URL detected yet", severity="INFO")
@@ -258,7 +257,7 @@ async def get_url(user_uid: str = Depends(get_current_user)):
         "url": "",
         "safety_status": {"overall": "No URL detected yet", "details": {}},
         "block_status": None,
-        "gemini_summary": "No summary available",  # Default value
+        "gemini_summary": "No summary available",
         "evaluating": evaluating_url
     }
 
@@ -314,16 +313,51 @@ async def scan_url(request: Request, user_uid: str = Depends(get_current_user)):
         }, severity="ERROR")
         return error_response
 
-# Initialize Firebase Admin SDK
-if not firebase_admin._apps:
-    cred = credentials.Certificate(
-        r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\trustlens-cbf72-firebase-adminsdk-fbsvc-b5be2f6954.json"
-    )
-    firebase_admin.initialize_app(cred)
-
-# Initialize Firestore client and collections
-db = firestore.client()
-urls_collection = db.collection('Scanned URLs')
+@app.post("/block_url")
+@limiter.limit("5/minute")
+async def block_url(request: Request, user_uid: str = Depends(get_current_user)):
+    if not user_uid:
+        logger.log_text("No user UID provided for blocking URL", severity="ERROR")
+        raise HTTPException(status_code=401, detail="Authentication required")
+    data = await request.json()
+    if not data or 'url' not in data:
+        logger.log_text("No URL provided in block_url request", severity="ERROR")
+        raise HTTPException(status_code=400, detail="No URL provided")
+    url = data['url']
+    try:
+        query = urls_collection.where("url", "==", url).limit(1).get()
+        if not query:
+            logger.log_text(f"URL {url} not found in Firestore", severity="ERROR")
+            raise HTTPException(status_code=404, detail="URL not found")
+        
+        doc = query[0].to_dict()
+        safety_status = doc.get("safety_status", {"overall": "Unknown", "details": {}})
+        gemini_summary = doc.get("gemini_summary", "No summary available")
+        
+        existing = db.collection('Blocked Websites').where("url", "==", url).limit(1).get()
+        if existing:
+            logger.log_text(f"URL {url} already blocked", severity="INFO")
+            return {"block_status": "already_blocked"}
+        
+        blocked, status = block_unsafe_website(url)
+        if blocked:
+            store_blocked_website_in_firestore(url, safety_status, gemini_summary)
+            doc_ref = query[0].reference
+            safety_status["details"]["url_info"]["block_status"] = status
+            doc_ref.update({"safety_status": safety_status})
+            logger.log_text(f"URL {url} blocked successfully", severity="INFO")
+            return {"block_status": status}
+        else:
+            logger.log_text(f"Failed to block URL {url}: {status}", severity="ERROR")
+            raise HTTPException(status_code=500, detail=f"Failed to block URL: {status}")
+    except Exception as e:
+        logger.log_struct({
+            "message": "Failed to block URL",
+            "url": url,
+            "user_uid": user_uid,
+            "error": str(e)
+        }, severity="ERROR")
+        raise HTTPException(status_code=500, detail=f"Failed to block URL: {str(e)}")
 
 @app.api_route("/get_virustotal_full_result", methods=["GET", "POST"])
 @limiter.limit("5/minute")
@@ -392,8 +426,8 @@ async def get_virustotal_full_result_endpoint(request: Request):
             "error": str(e)
         }, severity="ERROR")
         raise HTTPException(status_code=500, detail=f"Failed to fetch full VirusTotal result: {str(e)}")
-    
-UPLOAD_FOLDER = 'uploads'
+
+UPLOAD_FOLDER = 'Uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -457,3 +491,14 @@ async def scan_image(file: UploadFile = File(...), user_uid: str = Depends(get_c
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
+
+# Initialize Firebase Admin SDK
+if not firebase_admin._apps:
+    cred = credentials.Certificate(
+        r"C:\Users\USER\Desktop\trust_lens_project\TrustLens_project\OCR\trustlens-cbf72-firebase-adminsdk-fbsvc-b5be2f6954.json"
+    )
+    firebase_admin.initialize_app(cred)
+
+# Initialize Firestore client and collections
+db = firestore.client()
+urls_collection = db.collection('Scanned URLs')
