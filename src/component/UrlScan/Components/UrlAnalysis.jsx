@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { FcFeedback } from "react-icons/fc";
 import { FaPaperPlane } from "react-icons/fa";
@@ -7,6 +7,8 @@ import GeminiSummarySection from "./Gemini Summary/gemini_summary";
 import VirusTotalAnalysis from "../Components/APIs/virustotal";
 import TrustLensSecurityCheck from "./Security Check/DomainSecurity";
 import FeedbackFormPopup from "./popupFeedbackForm";
+import BlockUrlPopup from "./BlockUrlPopup";
+import useAuth from "../../../firebase/useAuth";
 
 const UrlAnalysis = ({
   extractedUrl,
@@ -18,6 +20,11 @@ const UrlAnalysis = ({
   userId,
 }) => {
   const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
+  const [isBlockPopupOpen, setIsBlockPopupOpen] = useState(false);
+  const [blockStatus, setBlockStatus] = useState(safetyStatus?.details?.url_info?.block_status || null);
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [isBlocking, setIsBlocking] = useState(false); // Added for loading state
+  const { fetchWithAuth, token, user } = useAuth();
 
   const mapOverallSafetyStatus = (backendStatus) => {
     if (backendStatus === "Unknown" || backendStatus === "URL DOES NOT EXIST") {
@@ -26,7 +33,7 @@ const UrlAnalysis = ({
     return backendStatus;
   };
 
-  const overallSafetyStatus = safetyStatus.overall
+  const overallSafetyStatus = safetyStatus?.overall
     ? mapOverallSafetyStatus(safetyStatus.overall)
     : "Unknown";
 
@@ -42,7 +49,7 @@ const UrlAnalysis = ({
       : "bg-gradient-to-br from-yellow-50 to-yellow-100";
 
   const isUrlNonExistent =
-    safetyStatus.details?.url_info?.status === "Non-existent";
+    safetyStatus?.details?.url_info?.status === "Non-existent";
 
   const getBlockStatusDisplay = (blockStatus) => {
     const statusMap = {
@@ -67,14 +74,122 @@ const UrlAnalysis = ({
     );
   };
 
-  const blockStatusDisplay = safetyStatus.details?.url_info?.block_status
-    ? getBlockStatusDisplay(safetyStatus.details.url_info.block_status)
+  const blockStatusDisplay = blockStatus
+    ? getBlockStatusDisplay(blockStatus)
     : { text: "Not Blocked", className: "text-gray-600" };
+
+  useEffect(() => {
+    console.log("Popup trigger conditions:", {
+      overallSafetyStatus,
+      userId,
+      blockStatus,
+      isBlockPopupOpen,
+      tokenAvailable: !!token,
+      userExists: !!user,
+    });
+
+    if (
+      overallSafetyStatus === "Unsafe" &&
+      userId &&
+      !["blocked", "already_blocked"].includes(blockStatus)
+    ) {
+      console.log("Conditions met, showing popup");
+      setIsBlockPopupOpen(true);
+    } else {
+      console.log("Conditions not met, hiding popup");
+      setIsBlockPopupOpen(false);
+    }
+  }, [overallSafetyStatus, blockStatus, userId, token, user]);
+
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => {
+        setToast({ show: false, message: "", type: "" });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
+
+  const handleBlockUrl = async () => {
+    console.log("handleBlockUrl called, token available:", !!token);
+    if (!token) {
+      console.error("No token available, cannot block URL");
+      setBlockStatus("no_uid");
+      setIsBlockPopupOpen(false);
+      setToast({
+        show: true,
+        message: "Please log in to block this URL",
+        type: "error",
+      });
+      return;
+    }
+
+    setIsBlocking(true); // Set loading state to true
+    try {
+      const response = await fetchWithAuth("http://localhost:8000/block_url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: extractedUrl }),
+      });
+
+      console.log("Block URL response status:", response.status);
+      const data = await response.json();
+      console.log("Block URL response data:", data);
+
+      if (response.ok) {
+        console.log("Block successful, updating blockStatus to:", data.block_status);
+        setBlockStatus(data.block_status);
+        setIsBlockPopupOpen(false);
+        setToast({
+          show: true,
+          message: "URL blocked successfully",
+          type: "success",
+        });
+      } else {
+        console.error("Failed to block URL:", data.detail);
+        setBlockStatus("error");
+        setToast({
+          show: true,
+          message: `Failed to block URL: ${data.detail || "Unknown error"}`,
+          type: "error",
+        });
+      }
+    } catch (err) {
+      console.error("Error blocking URL:", err.message);
+      setBlockStatus("error");
+      setToast({
+        show: true,
+        message: `Error blocking URL: ${err.message}`,
+        type: "error",
+      });
+    } finally {
+      setIsBlocking(false); // Reset loading state
+    }
+  };
+
+  const handleClosePopup = () => {
+    console.log("Closing block popup");
+    setIsBlockPopupOpen(false);
+  };
 
   return (
     <div
       className={`w-full ${backgroundColorClass} rounded-lg overflow-hidden shadow-lg relative`}
     >
+      {toast.show && (
+        <div
+          className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+            toast.type === "success"
+              ? "bg-green-500 text-white"
+              : "bg-red-500 text-white"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       <div
         className="bg-gradient-to-r from-blue-500 to-blue-400 text-white p-4 flex justify-between items-center cursor-pointer shadow-md"
         onClick={toggleAnalysis}
@@ -160,8 +275,7 @@ const UrlAnalysis = ({
                   >
                     {blockStatusDisplay.text}
                   </span>
-                  {blockStatusDisplay.text ===
-                    "Not Blocked - Login Required" && (
+                  {blockStatusDisplay.text === "Not Blocked - Login Required" && (
                     <span className="text-sm text-yellow-600 ml-2">
                       (Please log in to enable blocking)
                     </span>
@@ -173,24 +287,23 @@ const UrlAnalysis = ({
               )}
             </div>
 
-            {!isUrlNonExistent && safetyStatus.details?.virustotal?.status && (
+            {!isUrlNonExistent && safetyStatus?.details?.virustotal?.status && (
               <VirusTotalAnalysis
                 safetyStatus={safetyStatus}
                 extractedUrl={extractedUrl}
               />
             )}
 
-            {safetyStatus.details?.url_info && (
+            {safetyStatus?.details?.url_info && (
               <TrustLensSecurityCheck
                 safetyStatus={safetyStatus}
                 extractedUrl={extractedUrl}
               />
             )}
 
-            {!isUrlNonExistent && safetyStatus.details?.url_info && userId && (
+            {!isUrlNonExistent && safetyStatus?.details?.url_info && userId && (
               <div className="mt-2 flex justify-center">
                 <span className="text-gray-700 text-md font-semibold mr-3 flex justify-center items-center">
-                  {" "}
                   Detected some suspicious behaviour?
                 </span>
                 <button
@@ -215,6 +328,14 @@ const UrlAnalysis = ({
         onClose={() => setIsFeedbackPopupOpen(false)}
         url={extractedUrl || ""}
         userId={userId}
+      />
+
+      <BlockUrlPopup
+        isOpen={isBlockPopupOpen}
+        onClose={handleClosePopup}
+        onBlock={handleBlockUrl}
+        url={extractedUrl || ""}
+        isBlocking={isBlocking} // Pass the loading state
       />
     </div>
   );
