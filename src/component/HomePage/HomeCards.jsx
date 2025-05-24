@@ -4,7 +4,7 @@ import { FaSearch, FaCamera, FaImage } from "react-icons/fa";
 
 const HomeCards = () => {
   return (
-    <section className="flex justify-center px-6 md:px-12 py-10 bg-gray-50">
+    <section className="flex justify-center px-6 md:px-12 py-10">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* TrustLens Search Bar Card */}
         <div className="flex flex-col items-center rounded-3xl bg-white shadow-lg p-6 transform hover:scale-105 transition-all duration-300 border-t-4 border-sky-500">
