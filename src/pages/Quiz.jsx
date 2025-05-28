@@ -16,10 +16,10 @@ export default function Quiz() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-sky-50">
+    <div className="flex flex-col items-center justify-center min-h-full bg-sky-50">
       {step === "setup" && (
         <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-lg flex flex-col gap-6">
-          <h1 className="text-3xl font-bold text-center text-blue-700 mb-4">Cybersecurity Quiz</h1>
+          <h1 className="text-3xl font-bold text-center text-blue-700 mb-4">TrustLens Cybersecurity Quiz</h1>
           <div className="flex flex-col gap-3">
             <label className="font-semibold text-lg">Select Level:</label>
             <div className="flex gap-4">

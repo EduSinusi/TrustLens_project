@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db, storage } from "../firebase/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { updateProfile } from "firebase/auth";
+import { updateProfile, updatePassword } from "firebase/auth";
 import {
   ref,
   uploadBytes,
@@ -16,7 +16,7 @@ export default function EditProfile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(""); // Always blank
   const [photoURL, setPhotoURL] = useState("");
   const [photoFile, setPhotoFile] = useState(null);
   const [error, setError] = useState(null);
@@ -35,7 +35,7 @@ export default function EditProfile() {
           const userData = userDoc.data();
           setFirstName(userData.firstName || "");
           setLastName(userData.lastName || "");
-          setPassword(userData.password || "");
+          // Do NOT set password here!
         }
       } else {
         setError("No user is logged in");
@@ -109,10 +109,16 @@ export default function EditProfile() {
         finalPhotoURL = await getDownloadURL(storageRef);
         setPhotoURL(finalPhotoURL);
       }
+      // Update profile info
       await updateProfile(user, {
         displayName: `${firstName} ${lastName}`,
         photoURL: finalPhotoURL || "",
       });
+      // Only update password if entered and >= 6 characters
+      if (password && password.length >= 6) {
+        await updatePassword(user, password);
+        toast.success("Password updated successfully!");
+      }
       await updateDoc(doc(db, "UserInformation", user.uid), {
         firstName,
         lastName,
@@ -127,6 +133,7 @@ export default function EditProfile() {
       toast.error("Failed to update profile: " + err.message);
     } finally {
       setLoading(false);
+      setPassword(""); // Always clear the password field after submission
     }
   };
 
@@ -259,15 +266,16 @@ export default function EditProfile() {
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700"
               >
-                Password
+                New Password <span className="text-xs text-gray-400">(Leave blank to keep current password)</span>
               </label>
               <input
                 type={showPassword ? "text" : "password"}
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="********"
+                placeholder="Enter new password"
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                minLength={6}
               />
               <button
                 type="button"

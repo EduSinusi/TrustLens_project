@@ -6,7 +6,7 @@ import animationLandingPage from "../../../src/assets/Animation - hero.json";
 const HeroSection = () => {
   return (
     <>
-      <section className="relative h-[50vh] bg-gradient-to-b from-sky-600 to-gray-300  flex items-center justify-center overflow-hidden shadow-[0_10px_15px_-5px_rgba(0,0,0,0.3)] rounded-b-2xl mb-6">
+      <section className="relative h-[45vh] bg-gradient-to-b from-sky-600 to-gray-300  flex items-center justify-center overflow-hidden shadow-[0_10px_15px_-5px_rgba(0,0,0,0.3)] rounded-b-2xl mb-6">
         {/* Background Decorative Elements */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_rgba(255,255,255,0.2)_0%,_transparent_70%)]"></div>
 

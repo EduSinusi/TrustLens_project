@@ -63,7 +63,7 @@ export default function UserRegistration() {
           <Link to="/welcome" className="flex items-center space-x-2">
             <BsBoxArrowLeft className="w-5 h-5 text-slate-900 mr-3" />
             <h1 className="text-[15px] font-semibold text-slate-900 hover:underline">
-              Back 
+              Back
             </h1>
           </Link>
         </div>
@@ -99,7 +99,7 @@ export default function UserRegistration() {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="John"
-                className="w-full p-2 border-[2px] border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
+                className="w-full p-2 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600"
                 required
               />
             </div>
@@ -118,7 +118,7 @@ export default function UserRegistration() {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Andrew"
-                className="w-full p-2 border-[2px] border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
+                className="w-full p-2 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600"
                 required
               />
             </div>
@@ -137,7 +137,7 @@ export default function UserRegistration() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="j.andrew@gmail.com"
-                className="w-full p-2 border-[2px] border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
+                className="w-full p-2 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600"
                 required
               />
             </div>
@@ -156,7 +156,7 @@ export default function UserRegistration() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="hello123"
-                className="w-full p-2 border-[2px] border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
+                className="w-full p-2 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600"
                 required
               />
               <button
