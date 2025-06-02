@@ -1,4 +1,3 @@
-// Sidebar.jsx
 import React, { createContext } from "react";
 import {
   HomeIcon,
@@ -6,7 +5,7 @@ import {
   ChartBarIcon,
   ClockIcon,
   UserGroupIcon,
-  QuestionMarkCircleIcon
+  QuestionMarkCircleIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronFirst, ChevronLast } from "lucide-react";
 import ClickOutside from "./ClickOutside";
@@ -50,18 +49,14 @@ const Sidebar = ({ expanded, setExpanded }) => {
     <ClickOutside onClickOutside={handleClickOutside}>
       <aside className="h-screen" onClick={handleSidebarClick}>
         <nav
-          className={`h-full flex flex-col bg-gradient-to-b from-sky-600 to-gray-200 border-none items-center shadow-xl pt-2.5 ${
-            expanded ? "w-72" : "w-20"
-          } transition-all duration-300`}
+          className={`h-full flex flex-col bg-gradient-to-b from-sky-600 to-gray-200 border-none items-center shadow-xl pt-2.5 ${expanded ? "w-72" : "w-20"} transition-all duration-300`}
         >
           <div className="p-5 pb-2 flex justify-center items-center">
             <Link to="/home">
               <img
                 src="/trustlens-logo.png"
                 alt="TrustLens Logo"
-                className={`object-cover overflow-hidden transition-all ${
-                  expanded ? "w-32 h-auto" : "w-0 h-0"
-                }`}
+                className={`object-cover overflow-hidden transition-all ${expanded ? "w-32 h-auto" : "w-0 h-0"}`}
               />
             </Link>
             <button
@@ -76,17 +71,21 @@ const Sidebar = ({ expanded, setExpanded }) => {
           </div>
 
           <SidebarContext.Provider value={{ expanded }}>
-            <ul className="flex-1 px-3">
+            <ul className="flex-1 px-3 py-2"> {/* Added py-2 for consistent vertical padding */}
               <SidebarItem
                 icon={<HomeIcon className="w-8 h-8" />}
                 text="Home"
                 to="/home"
               />
-              
               <SidebarItemWithDropdown
                 icon={<LinkIcon className="w-8 h-8" />}
                 text="URL Scan"
                 items={urlScanItems}
+              />
+              <SidebarItem
+                icon={<ClockIcon className="w-8 h-8" />}
+                text="Scan History"
+                to="/scan-history"
               />
               <SidebarItem
                 icon={<ChartBarIcon className="w-8 h-8" />}
@@ -94,7 +93,7 @@ const Sidebar = ({ expanded, setExpanded }) => {
                 to="/dashboard"
               />
               <SidebarItem
-                icon={<QuestionMarkCircleIcon className="w-8 h-8" />} // Replace with appropriate quiz icon
+                icon={<QuestionMarkCircleIcon className="w-8 h-8" />}
                 text="Cybersecurity Quiz"
                 to="/cybersecurity-quiz"
               />

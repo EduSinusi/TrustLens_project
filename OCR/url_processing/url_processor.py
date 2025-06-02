@@ -246,16 +246,18 @@ def store_url_in_firestore(url: str, safety_status: dict, gemini_summary: str, u
         }
         gemini_summary = "Error: Invalid safety status format"
     
+    # Store in global Scanned URLs without gemini_summary
     global_data = {
         "url": url,
         "safety_status": safety_status,
-        "gemini_summary": gemini_summary,
         "timestamp": firestore.SERVER_TIMESTAMP
     }
     
+    # Store in user-specific scanned_urls with gemini_summary
     user_data = {
         "url": url,
         "safety_status": safety_status,
+        "gemini_summary": gemini_summary,  # Include gemini_summary here
         "timestamp": firestore.SERVER_TIMESTAMP
     }
     
@@ -267,6 +269,7 @@ def store_url_in_firestore(url: str, safety_status: dict, gemini_summary: str, u
     log_user_data = {
         "url": url,
         "safety_status": safety_status,
+        "gemini_summary": gemini_summary,
         "timestamp": "SERVER_TIMESTAMP"
     }
     
@@ -325,17 +328,18 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_sum
         }
         gemini_summary = "Error: Invalid safety status format"
     
+    # Check if URL is already blocked
     existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
     if existing:
         logger.log_text(f"URL {url} already blocked", severity="INFO")
         return
     
+    # Store only the required fields: overall, message, url, and timestamp
     data = {
         "url": url,
-        "safety_status": safety_status,
-        "gemini_summary": gemini_summary,
-        "timestamp": firestore.SERVER_TIMESTAMP,
-        "blocked": True
+        "overall": safety_status.get("overall", "Unknown"),
+        "message": safety_status.get("message", "No message available"),
+        "timestamp": firestore.SERVER_TIMESTAMP
     }
     
     try:

@@ -14,7 +14,7 @@ from threading import Thread
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import os
-from url_processing.url_processor import process_and_block_url, store_blocked_website_in_firestore
+from url_processing.url_processor import process_and_block_url, store_blocked_website_in_firestore, get_url_doc_id
 from real_time_url_extractor import extract_url_from_qr_code, extract_url_from_text, preprocess_image
 from url_processing.virustotal import get_virustotal_full_result, check_virustotal
 from website_blocker import block_unsafe_website
@@ -244,12 +244,22 @@ async def stop_scan():
 async def get_url(user_uid: str = Depends(get_current_user)):
     global latest_url, latest_safety_status, latest_block_status, latest_gemini_summary
     if latest_url and latest_safety_status:
+        gemini_summary = latest_gemini_summary
+        if user_uid:
+            # Fetch gemini_summary from user-specific collection
+            doc_id = get_url_doc_id(latest_url)
+            user_urls_collection = db.collection('users').document(user_uid).collection('scanned_urls')
+            user_doc_ref = user_urls_collection.document(doc_id)
+            user_doc = user_doc_ref.get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                gemini_summary = user_data.get("gemini_summary", "No summary available")
         logger.log_text(f"Returning URL info: {latest_url}", severity="INFO")
         return {
             "url": latest_url,
             "safety_status": latest_safety_status,
             "block_status": latest_block_status,
-            "gemini_summary": latest_gemini_summary,
+            "gemini_summary": gemini_summary,
             "evaluating": evaluating_url
         }
     logger.log_text("No URL detected yet", severity="INFO")
@@ -325,6 +335,7 @@ async def block_url(request: Request, user_uid: str = Depends(get_current_user))
         raise HTTPException(status_code=400, detail="No URL provided")
     url = data['url']
     try:
+        # Check if URL exists in Scanned URLs
         query = urls_collection.where("url", "==", url).limit(1).get()
         if not query:
             logger.log_text(f"URL {url} not found in Firestore", severity="ERROR")
@@ -334,17 +345,45 @@ async def block_url(request: Request, user_uid: str = Depends(get_current_user))
         safety_status = doc.get("safety_status", {"overall": "Unknown", "details": {}})
         gemini_summary = doc.get("gemini_summary", "No summary available")
         
+        # Check if already blocked
         existing = db.collection('Blocked Websites').where("url", "==", url).limit(1).get()
         if existing:
             logger.log_text(f"URL {url} already blocked", severity="INFO")
             return {"block_status": "already_blocked"}
         
+        # Block the website
         blocked, status = block_unsafe_website(url)
         if blocked:
+            # Store in Blocked Websites (will fix this in Issue 2)
             store_blocked_website_in_firestore(url, safety_status, gemini_summary)
+            
+            # Update block_status in safety_status for global Scanned URLs
             doc_ref = query[0].reference
             safety_status["details"]["url_info"]["block_status"] = status
             doc_ref.update({"safety_status": safety_status})
+            
+            # Update user-specific scanned_urls subcollection
+            doc_id = get_url_doc_id(url)  # Use the same doc_id as in url_processor.py
+            user_urls_collection = db.collection('users').document(user_uid).collection('scanned_urls')
+            user_doc_ref = user_urls_collection.document(doc_id)
+            
+            # Fetch the user-specific document
+            user_doc = user_doc_ref.get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                # Update the safety_status with the new block_status
+                user_data["safety_status"] = safety_status
+                user_doc_ref.set(user_data)  # Update the user-specific document
+                logger.log_struct({
+                    "message": "Updated block_status in user-specific scanned_urls",
+                    "url": url,
+                    "user_uid": user_uid,
+                    "doc_id": doc_id,
+                    "safety_status": safety_status
+                }, severity="INFO")
+            else:
+                logger.log_text(f"User-specific document for URL {url} not found for user {user_uid}", severity="WARNING")
+            
             logger.log_text(f"URL {url} blocked successfully", severity="INFO")
             return {"block_status": status}
         else:

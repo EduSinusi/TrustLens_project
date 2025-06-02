@@ -9,6 +9,8 @@ import {
   PhotoIcon,
   ChatBubbleLeftIcon,
   InformationCircleIcon,
+  ClockIcon,
+  LinkIcon,
 } from "@heroicons/react/24/solid";
 
 const SidebarItemWithDropdown = ({ icon, text, items }) => {
@@ -21,7 +23,7 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
     if (expanded) {
       setIsOpen(!isOpen);
       if (!isOpen) {
-        window.history.pushState({}, "", "/url-scan");
+        window.history.pushState({}, "", text.toLowerCase().replace(" ", "-"));
       }
     }
   };
@@ -31,31 +33,22 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
       {/* Main Item */}
       <div
         onClick={handleMainClick}
-        className={`relative flex items-center justify-start py-2 px-4 my-3 font-medium text-xl rounded-md cursor-pointer transition-colors group ${
-          active
-            ? "bg-gradient-to-tr from-blue-300 to-blue-100 text-blue-800"
-            : "text-gray-700 hover:bg-blue-200"
-        }`}
+        className={`relative flex items-center justify-start py-2 px-4 my-3 font-medium text-xl rounded-md cursor-pointer transition-colors group ${active ? "bg-gradient-to-tr from-blue-300 to-blue-100 text-blue-800" : "text-gray-700 hover:bg-blue-200"}`}
+        style={{ minHeight: "56px" }} // Added min-height to match icon size
       >
         <div
-          className={`w-8 h-8 ${
-            active ? "text-blue-800" : "text-gray-900 group-hover:text-blue-600"
-          } transition-colors duration-300`}
+          className={`w-8 h-8 ${active ? "text-blue-800" : "text-gray-900 group-hover:text-blue-600"} transition-colors duration-300`}
         >
           {icon}
         </div>
         <span
-          className={`overflow-hidden transition-all ${
-            expanded ? "w-48 ml-3" : "w-0"
-          } ${active ? "text-blue-800" : "text-sky-950"}`}
+          className={`overflow-hidden transition-all ${expanded ? "w-48 ml-3" : "w-0"} ${active ? "text-blue-800" : "text-sky-950"}`}
         >
           {text}
         </span>
         {expanded && (
           <ChevronDownIcon
-            className={`w-5 h-5 ml-auto transition-transform duration-300 ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            className={`w-5 h-5 ml-auto transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
           />
         )}
         {!expanded && (
@@ -66,7 +59,7 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
               shadow-md
               invisible opacity-0 -translate-x-3 transition-all
               group-hover:visible group-hover:opacity-100 group-hover:translate-x-0
-              z-10
+              z-10 whitespace-nowrap
             `}
           >
             {text}
@@ -76,7 +69,7 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
 
       {/* Dropdown Items */}
       {expanded && isOpen && (
-        <ul className="ml-8 mt-1 space-y-1">
+        <ul className="absolute ml-4 mt-1 space-y-1 bg-white shadow-lg rounded-md z-10">
           {items.map((item, index) => {
             const isSelected = location.pathname === item.to;
             const ItemIcon =
@@ -96,11 +89,7 @@ const SidebarItemWithDropdown = ({ icon, text, items }) => {
               <li key={index}>
                 <Link
                   to={item.to}
-                  className={`flex items-center py-1 px-3 text-md font-semibold rounded-md transition-colors duration-200 ${
-                    isSelected
-                      ? "bg-blue-100 text-blue-800"
-                      : "text-gray-600 hover:bg-blue-50"
-                  }`}
+                  className={`flex items-center py-1 px-3 text-md font-semibold rounded-md transition-colors duration-200 ${isSelected ? "bg-blue-100 text-blue-800" : "text-gray-600 hover:bg-blue-50"}`}
                 >
                   <span className="flex items-center w-5 h-5 mr-2 transition-all duration-300">
                     {isSelected ? (

@@ -18,6 +18,7 @@ const SidebarItem = ({ icon, text, to }) => {
             ? "bg-gradient-to-tr from-blue-300 to-blue-100 text-blue-800"
             : "text-gray-600 hover:bg-blue-200"
         }`}
+        style={{ minHeight: "56px" }} // Added min-height to match icon size (8px + padding)
       >
         {/* Icon with conditional color */}
         <div
@@ -39,14 +40,13 @@ const SidebarItem = ({ icon, text, to }) => {
         {!expanded && (
           <div
             className={`
-      absolute left-full rounded-md px-3 py-1 ml-4
-      bg-blue-200 text-blue-900 text-sm font-medium
-      shadow-md
-      invisible opacity-0 -translate-x-3 transition-all
-      group-hover:visible group-hover:opacity-100 group-hover:translate-x-0
-      z-10
-    `}
-            aria-hidden={!expanded && !active}
+              absolute left-full rounded-md px-3 py-1 ml-4
+              bg-blue-200 text-blue-900 text-sm font-medium
+              shadow-md
+              invisible opacity-0 -translate-x-3 transition-all
+              group-hover:visible group-hover:opacity-100 group-hover:translate-x-0
+              z-10 whitespace-nowrap
+            `}
           >
             {text}
           </div>

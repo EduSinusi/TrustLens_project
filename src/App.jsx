@@ -46,6 +46,7 @@ const App = () => {
           <Route path="/support/chatbot" element={<GeminiChat />} />
           <Route path="/cybersecurity-quiz" element={<Quiz />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/scan-history" element={<ScanHistory />} />
           <Route path="/" element={<ScanHistory />} />
           {/* <Route path="/support" element={<Support />} /> 
           <Route path="*" element={<NotFoundPage />} /> */} 
