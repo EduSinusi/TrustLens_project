@@ -71,6 +71,47 @@ def chat_endpoint(request: ChatRequest):
         logger.log_text(f"Gemini API error: {str(e)}", severity="ERROR")
         raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
 
+class SuggestionRequest(BaseModel):
+    partial_prompt: str
+
+@app.post("/api/suggestions")
+def get_suggestions(request: SuggestionRequest):
+    logger.log_text(f"Received partial prompt for suggestions: {request.partial_prompt}", severity="INFO")
+    try:
+        if not request.partial_prompt.strip():
+            return {"suggestions": [
+                "What are the latest cybersecurity threats?",
+                "Can you explain zero-day exploits?",
+                "How can I improve my home network security?",
+                "What's the best way to create a strong password?"
+            ]}
+
+        meta_prompt = f"""
+        You are a cybersecurity-focused AI assistant. Based on the user's partial input: '{request.partial_prompt}',
+        provide up to 4 concise, relevant prompt suggestions that complete or expand on the input.
+        Focus on cybersecurity topics. Return the suggestions as a list of strings, one per line.
+        Example output:
+        "Suggestion 1"
+        "Suggestion 2"
+        "Suggestion 3"
+        "Suggestion 4"
+        """
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(
+            meta_prompt,
+            generation_config={
+                "temperature": 0.8,
+                "top_p": 0.9,
+                "max_output_tokens": 200,
+            },
+        )
+        suggestions = [s.strip().strip('"') for s in response.text.strip().split('\n') if s.strip()]
+        logger.log_text(f"Generated suggestions: {suggestions}", severity="INFO")
+        return {"suggestions": suggestions[:4]}  # Limit to 4 suggestions
+    except Exception as e:
+        logger.log_text(f"Error generating suggestions: {str(e)}", severity="ERROR")
+        raise HTTPException(status_code=500, detail=f"Failed to generate suggestions: {str(e)}")
+
 # Run server
 if __name__ == "__main__":
     import uvicorn

@@ -14,11 +14,11 @@ const HomeCards = () => {
           <h3 className="text-2xl font-semibold text-gray-800 mb-3">
             TrustLens Search Bar
           </h3>
-          <p className="text-gray-600 text-center mb-4">
-            Manually enter URLs or QR code links to scan for threats instantly.
+          <p className="text-gray-600 text-center mb-10">
+            Manually enter URLs to scan for threats instantly.
           </p>
           <Link to="/url-scan/search">
-            <button className="bg-sky-600 text-white px-6 py-2 font-semibold rounded-lg hover:bg-sky-700 transition-colors">
+            <button className="bg-sky-600 text-white px-5 py-2 text-lg font-semibold rounded-lg hover:bg-sky-700 transition-colors">
               Start Manual Scan
             </button>
           </Link>
@@ -36,7 +36,7 @@ const HomeCards = () => {
             Use your camera to scan URLs or QR codes in real-time.
           </p>
           <Link to="/url-scan/webcam">
-            <button className="bg-sky-600 text-white px-6 py-2 font-semibold rounded-lg hover:bg-sky-700 transition-colors">
+            <button className="bg-sky-600 text-white px-5 py-2 text-lg font-semibold rounded-lg hover:bg-sky-700 transition-colors">
               Start Live Scan
             </button>
           </Link>
@@ -54,7 +54,7 @@ const HomeCards = () => {
             Upload an image containing a URL or QR code to analyze.
           </p>
           <Link to="/url-scan/image">
-            <button className="bg-sky-600 text-white px-6 py-2 font-semibold rounded-lg hover:bg-sky-700 transition-colors">
+            <button className="bg-sky-600 text-white px-5 py-2 text-lg font-semibold rounded-lg hover:bg-sky-700 transition-colors">
               Start Image Scan
             </button>
           </Link>

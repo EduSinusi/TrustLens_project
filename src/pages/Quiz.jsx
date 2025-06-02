@@ -1,72 +1,75 @@
+// src/pages/Quiz.jsx
 import React, { useState } from "react";
 import QuizSetup from "../component/Quiz/QuizSetup";
+import Lottie from "lottie-react";
+import QuizAnimation from "../../../TrustLens_project/src/assets/QuizAnimation.json";
 
 const TOPICS = ["Phishing", "Passwords", "Social Engineering"];
-const LEVELS = ["easy", "hard"];
 
 export default function Quiz() {
   const [step, setStep] = useState("setup");
-  const [level, setLevel] = useState("easy");
   const [topic, setTopic] = useState(TOPICS[0]);
   const [quizParams, setQuizParams] = useState(null);
 
   const handleStart = () => {
-    setQuizParams({ level, topic });
+    setQuizParams({ topic });
     setStep("quiz");
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-full bg-sky-50">
+    <div className="min-h-full bg-gradient-to-br from-blue-100 to-gray-50 py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
+      <h1 className="text-5xl font-extrabold text-center mb-10 bg-gradient-to-r from-blue-600 to-teal-500 text-transparent bg-clip-text">
+        TrustLens Cybersecurity Quiz
+      </h1>
       {step === "setup" && (
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-lg flex flex-col gap-6">
-          <h1 className="text-3xl font-bold text-center text-blue-700 mb-4">TrustLens Cybersecurity Quiz</h1>
-          <div className="flex flex-col gap-3">
-            <label className="font-semibold text-lg">Select Level:</label>
-            <div className="flex gap-4">
-              {LEVELS.map(lvl => (
-                <button
-                  key={lvl}
-                  className={`px-4 py-2 rounded-lg font-medium border-2 transition ${
-                    level === lvl
-                      ? "bg-sky-500 text-white border-blue-600"
-                      : "bg-gray-100 text-blue-700 border-blue-200"
-                  }`}
-                  onClick={() => setLevel(lvl)}
-                >
-                  {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
-                </button>
-              ))}
+        <div className="w-full max-w-[800px] mx-auto bg-white p-8 rounded-2xl shadow-2xl border border-blue-200 transform transition-all hover:shadow-blue-300">
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">
+              Instructions
+            </h3>
+            <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
+              <li>Select a topic to start the quiz.</li>
+              <li>Each question may include an image for reference.</li>
+              <li>Choose the correct answer from the options provided.</li>
+              <li>Click "Start Quiz" to begin and enjoy learning!</li>
+            </ul>
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <label
+                htmlFor="topic"
+                className="block text-sm font-semibold text-gray-700 mb-2"
+              >
+                Select Topic
+              </label>
+              <select
+                id="topic"
+                name="topic"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+              >
+                {TOPICS.map((t) => (
+                  <option key={t} value={t} className="bg-white">
+                    {t}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
-          <div className="flex flex-col gap-3">
-            <label className="font-semibold text-lg">Select Topic:</label>
-            <select
-              className="px-4 py-2 rounded-lg border border-blue-200 bg-sky-50"
-              value={topic}
-              onChange={e => setTopic(e.target.value)}
+
+            <button
+              onClick={handleStart}
+              className="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-teal-500 text-white font-semibold text-lg shadow-md hover:from-blue-700 hover:to-teal-600 transition-all duration-300 transform hover:scale-102"
             >
-              {TOPICS.map(t => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              Start Quiz
+            </button>
           </div>
-          <button
-            className="mt-6 px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-xl shadow hover:bg-blue-700 transition"
-            onClick={handleStart}
-          >
-            Start Quiz
-          </button>
         </div>
       )}
 
       {step === "quiz" && quizParams && (
-        <QuizSetup
-          level={quizParams.level}
-          topic={quizParams.topic}
-          onBack={() => setStep("setup")}
-        />
+        <QuizSetup topic={quizParams.topic} onBack={() => setStep("setup")} />
       )}
     </div>
   );
