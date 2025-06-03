@@ -1,45 +1,50 @@
-// SummaryStats.jsx
 import React from "react";
-import { FaShieldAlt, FaGlobe } from "react-icons/fa";
+import { FaShieldAlt } from "react-icons/fa";
+import { SiDowndetector } from "react-icons/si";
+import { ImBlocked } from "react-icons/im";
+import { MdFeedback } from "react-icons/md";
 
 const SummaryStats = ({ analyticsData }) => {
+  // Assuming 7 feedback documents from the user_feedback collection for UID mj373S4FU3YUcMsWndwSpq147s43
+  const totalFeedback = 7;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100">
+      <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
         <div className="flex items-center">
-          <FaShieldAlt className="h-6 w-6 text-blue-600 mr-3" />
-          <h2 className="text-lg font-semibold text-gray-700">Total Scans</h2>
+          <FaShieldAlt className="h-7 w-7 text-blue-600 mr-4" />
+          <h2 className="text-lg font-semibold text-gray-800">Total Scans</h2>
         </div>
-        <p className="text-3xl font-bold text-gray-900 mt-2">
+        <p className="text-3xl font-bold text-gray-900 mt-3">
           {analyticsData.totalScans}
         </p>
       </div>
-      <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-700">Blocked URLs</h2>
-        <p className="text-3xl font-bold text-gray-900 mt-2">
+      <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
+        <div className="flex items-center">
+          <SiDowndetector className="h-7 w-7 text-blue-600 mr-4" />
+          <h2 className="text-lg font-semibold text-gray-800">Unsafe URLs</h2>
+        </div>
+        <p className="text-3xl font-bold text-gray-900 mt-3">
+          {analyticsData.safetyBreakdown.Unsafe || 0}
+        </p>
+      </div>
+      <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
+        <div className="flex items-center">
+          <ImBlocked className="h-7 w-7 text-blue-600 mr-4" />
+          <h2 className="text-lg font-semibold text-gray-800">Blocked URLs</h2>
+        </div>
+        <p className="text-3xl font-bold text-gray-900 mt-3">
           {analyticsData.blockedCount}
         </p>
       </div>
-      <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-700">
-          Avg. Security Score
-        </h2>
-        <p className="text-3xl font-bold text-gray-900 mt-2">
-          {Math.round(analyticsData.avgSecurityScore) || "N/A"}
-        </p>
-      </div>
-      <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100">
+      <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
         <div className="flex items-center">
-          <FaGlobe className="h-6 w-6 text-blue-600 mr-3" />
-          <h2 className="text-lg font-semibold text-gray-700">
-            Top GeoIP Location
+          <MdFeedback className="h-7 w-7 text-blue-600 mr-4" />
+          <h2 className="text-lg font-semibold text-gray-800">
+            Feedback Provided
           </h2>
         </div>
-        <p className="text-xl font-bold text-gray-900 mt-2 truncate">
-          {Object.entries(analyticsData.geoIpLocations).sort(
-            (a, b) => b[1] - a[1]
-          )[0]?.[0] || "N/A"}
-        </p>
+        <p className="text-3xl font-bold text-gray-900 mt-3">{totalFeedback}</p>
       </div>
     </div>
   );

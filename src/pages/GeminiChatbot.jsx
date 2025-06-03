@@ -101,7 +101,13 @@ export default function GeminiChat() {
           animationData={animationLandingPage}
           loop={true}
           playbackRate={0.5}
-          style={{ width: 55, height: 55, position: "absolute", top: 14, right: 805 }}
+          style={{
+            width: 55,
+            height: 55,
+            position: "absolute",
+            top: 14,
+            right: 805,
+          }}
         />
         <h1 className="text-3xl font-bold text-center mb-1 mt-3 bg-sky-700 text-transparent bg-clip-text">
           TrustLens AI Chatbot

@@ -1,12 +1,13 @@
-// File: src/pages/ScanHistory.jsx
 import React, { useState, useEffect } from "react";
-import { db } from "../firebase/firebase"; // Adjust to your actual Firebase path
+import { db } from "../firebase/firebase";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import OverallScanSection from "../component/History/OverallScanResult";
 import SafeScanSection from "../component/History/SafeScanSection";
 import UnsafeScanSection from "../component/History/UnsafeScanSection";
 import PotentiallyUnsafeScanSection from "../component/History/PotentiallyUnsafeSection";
 import useAuth from "../firebase/useAuth";
+import Lottie from "lottie-react";
+import animationScanHistory from "../../src/assets/animation - scan history.json";
 
 const ScanHistory = () => {
   const { user, loading: authLoading } = useAuth();
@@ -18,9 +19,8 @@ const ScanHistory = () => {
   const [isSecurityPopupOpen, setIsSecurityPopupOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateRange, setDateRange] = useState("All");
-  const [activeTab, setActiveTab] = useState("Overall"); // State to manage active tab
+  const [activeTab, setActiveTab] = useState("Overall");
 
-  // 1) Fetch scan history from Firestore once user is known
   useEffect(() => {
     if (authLoading) return;
 
@@ -43,9 +43,10 @@ const ScanHistory = () => {
           id: doc.id,
           ...doc.data(),
           timestamp: doc.data().timestamp?.toDate() || new Date(),
-          showDetails: false, // for expanding/collapsing rows
+          showDetails: false,
         }));
 
+        console.log("Scan History Data:", scans); // Debug log to inspect data
         setScanHistory(scans);
       } catch (err) {
         console.error("Error fetching scan history:", err);
@@ -58,36 +59,36 @@ const ScanHistory = () => {
     fetchScanHistory();
   }, [authLoading, user]);
 
-  // 2) Show “Checking authentication…” spinner while auth is initializing
   if (authLoading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-100">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        <p className="ml-2 text-gray-700">Checking authentication…</p>
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+        <p className="ml-3 text-gray-800 text-lg font-medium">
+          Checking authentication…
+        </p>
       </div>
     );
   }
 
-  // 3) If there was an explicit error (not logged in or Firestore error), show it
   if (error) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-100">
-        <p className="text-red-600">{error}</p>
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <p className="text-red-600 text-lg font-medium">{error}</p>
       </div>
     );
   }
 
-  // 4) If user is logged in but data is still loading, show loading spinner
   if (loadingData) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-100">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        <p className="ml-2 text-gray-700">Loading scan history...</p>
+      <div className="flex justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+        <p className="ml-3 text-gray-800 text-2xl font-medium">
+          Loading Scan History...
+        </p>
       </div>
     );
   }
 
-  // 5) Filter scans based on statusFilter and dateRange
   const filteredScans = scanHistory.filter((scan) => {
     const matchesStatus =
       statusFilter === "All" || scan.safety_status.overall === statusFilter;
@@ -110,13 +111,17 @@ const ScanHistory = () => {
     return matchesStatus;
   });
 
-  // 6) Categorize scans
   const overallScans = filteredScans;
-  const safeScans = filteredScans.filter((scan) => scan.safety_status.overall === "Safe");
-  const unsafeScans = filteredScans.filter((scan) => scan.safety_status.overall === "Unsafe");
-  const potentiallyUnsafeScans = filteredScans.filter((scan) => scan.safety_status.overall === "Potentially Unsafe");
+  const safeScans = filteredScans.filter(
+    (scan) => scan.safety_status.overall === "Safe" || scan.safety_status.overall === "Safe - Safe"
+  );
+  const unsafeScans = filteredScans.filter(
+    (scan) => scan.safety_status.overall === "Unsafe"
+  );
+  const potentiallyUnsafeScans = filteredScans.filter(
+    (scan) => scan.safety_status.overall === "Potentially Unsafe"
+  );
 
-  // 7) Toggle details handler
   const toggleDetails = (scanId) => {
     setScanHistory((prev) =>
       prev.map((scan) =>
@@ -126,66 +131,97 @@ const ScanHistory = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Scan History</h1>
+    <div className="p-8 lg:p-12 bg-sky-50 min-h-screen">
+      <div className="flex items-center mb-5">
+        <Lottie
+          animationData={animationScanHistory}
+          loop={true}
+          style={{ width: 200, height: 240, marginRight: 40, speed: 0.5, marginLeft: 30 }}
+        />
+        <h1 className="text-7xl font-bold text-gray-900 mb-8">
+          Scan History
+        </h1>
+      </div>
 
-      {/* Filters */}
-      <div className="mb-4 flex space-x-4">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="p-2 border border-gray-300 rounded-md"
-        >
-          <option value="All">All Statuses</option>
-          <option value="Safe">Safe</option>
-          <option value="Unsafe">Unsafe</option>
-          <option value="Potentially Unsafe">Potentially Unsafe</option>
-        </select>
-
-        <select
-          value={dateRange}
-          onChange={(e) => setDateRange(e.target.value)}
-          className="p-2 border border-gray-300 rounded-md"
-        >
-          <option value="All">All Time</option>
-          <option value="Last 7 Days">Last 7 Days</option>
-          <option value="Last 30 Days">Last 30 Days</option>
-        </select>
+      <div className="gap-13 mb-6 flex flex-col sm:flex-row gap-4 bg-gray-200/70 backdrop-blur-md p-5 rounded-3xl shadow-lg">
+        <div className="flex items-center">
+          <label className="text-lg text-gray-800 font-semibold mr-4">
+            Status Filter:
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-gray-200 rounded-xl px-4 py-2 text-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all duration-200 hover:bg-gray-50"
+          >
+            <option value="All">All Statuses</option>
+            <option value="Safe">Safe</option>
+            <option value="Unsafe">Unsafe</option>
+            <option value="Potentially Unsafe">Potentially Unsafe</option>
+          </select>
+        </div>
+        <div className="flex items-center">
+          <label className="text-lg text-gray-800 font-semibold mr-4">
+            Date Range:
+          </label>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="border border-gray-200 rounded-xl px-4 py-2 text-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all duration-200 hover:bg-gray-50"
+          >
+            <option value="All">All Time</option>
+            <option value="Last 7 Days">Last 7 Days</option>
+            <option value="Last 30 Days">Last 30 Days</option>
+          </select>
+        </div>
       </div>
 
       {filteredScans.length === 0 ? (
-        <p className="text-gray-600">No scan history available.</p>
+        <p className="text-gray-600 text-lg">No scan history available.</p>
       ) : (
         <>
-          {/* Tab Navigation */}
-          <div className="flex space-x-4 text-xl mb-4 border-b border-gray-300">
+          <div className="flex space-x-6 text-lg mb-6 border-b border-gray-200">
             <button
-              className={`py-2 px-4 font-semibold ${activeTab === "Overall" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-600 hover:text-gray-800"}`}
+              className={`py-3 px-6 font-semibold transition-all duration-200 ${
+                activeTab === "Overall"
+                  ? "border-b-4 border-blue-600 text-blue-600"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
               onClick={() => setActiveTab("Overall")}
             >
               Overall Scan
             </button>
             <button
-              className={`py-2 px-4 font-semibold ${activeTab === "Safe" ? "border-b-2 border-green-600 text-green-600" : "text-gray-600 hover:text-gray-800"}`}
+              className={`py-3 px-6 font-semibold transition-all duration-200 ${
+                activeTab === "Safe"
+                  ? "border-b-4 border-green-600 text-green-600"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
               onClick={() => setActiveTab("Safe")}
             >
-              Safe Scan Results
+              Safe Scans
             </button>
             <button
-              className={`py-2 px-4 font-semibold ${activeTab === "Unsafe" ? "border-b-2 border-red-600 text-red-600" : "text-gray-600 hover:text-gray-800"}`}
+              className={`py-3 px-6 font-semibold transition-all duration-200 ${
+                activeTab === "Unsafe"
+                  ? "border-b-4 border-red-600 text-red-600"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
               onClick={() => setActiveTab("Unsafe")}
             >
-              Unsafe Scan Results
+              Unsafe Scans
             </button>
             <button
-              className={`py-2 px-4 font-semibold ${activeTab === "PotentiallyUnsafe" ? "border-b-2 border-yellow-600 text-yellow-600" : "text-gray-600 hover:text-gray-800"}`}
+              className={`py-3 px-6 font-semibold transition-all duration-200 ${
+                activeTab === "PotentiallyUnsafe"
+                  ? "border-b-4 border-yellow-600 text-yellow-600"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
               onClick={() => setActiveTab("PotentiallyUnsafe")}
             >
-              Potentially Unsafe Scan Results
+              Potentially Unsafe
             </button>
           </div>
 
-          {/* Tab Content */}
           {activeTab === "Overall" && (
             <OverallScanSection
               scans={overallScans}
