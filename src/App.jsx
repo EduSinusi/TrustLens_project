@@ -15,6 +15,7 @@ import ScanHistory from "./pages/ScanHistory";
 import InfoCenter from "./pages/InfoCenter";
 import GeminiChat from "./pages/GeminiChatbot";
 import PipWindow from "./component/UrlScan/Components/PipWindow/PipWindow";
+import CybersecurityCourses from "./pages/CybersecurityCourses";
 import Quiz from "./pages/Quiz";
 import NotFoundPage from "./pages/NotFoundPage";
 import Dashboard from "./pages/Dashboard";
@@ -47,6 +48,7 @@ const App = () => {
           <Route path="/cybersecurity-quiz" element={<Quiz />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/scan-history" element={<ScanHistory />} />
+          <Route path="/cybersecurity-course" element={<CybersecurityCourses />} />
           <Route path="/" element={<ScanHistory />} />
           {/* <Route path="/support" element={<Support />} /> 
           <Route path="*" element={<NotFoundPage />} /> */} 

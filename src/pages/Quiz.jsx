@@ -16,7 +16,7 @@ export default function Quiz() {
     <div className="min-h-full bg-sky-100 py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
       {step === "setup" && (
         <>
-          <h1 className="text-6xl font-extrabold text-center mb-10 bg-gray-700 text-transparent bg-clip-text">
+          <h1 className="text-6xl font-extrabold bg-gray-700 text-transparent bg-clip-text leading-tight mb-10">
             TrustLens Cybersecurity Quiz
           </h1>
           <div className="w-full max-w-[800px] mx-auto bg-white p-8 rounded-2xl shadow-2xl border border-blue-200 transform transition-all hover:shadow-blue-300">

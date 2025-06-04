@@ -138,7 +138,7 @@ const ScanHistory = () => {
           loop={true}
           style={{ width: 200, height: 240, marginRight: 40, speed: 0.5, marginLeft: 30 }}
         />
-        <h1 className="text-7xl font-bold text-gray-900 mb-8">
+        <h1 className="text-7xl font-extrabold bg-gray-700 text-transparent bg-clip-text leading-tight">
           Scan History
         </h1>
       </div>

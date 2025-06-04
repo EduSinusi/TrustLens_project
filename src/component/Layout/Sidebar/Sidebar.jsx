@@ -10,7 +10,7 @@ import {
 import { ChevronFirst, ChevronLast } from "lucide-react";
 import ClickOutside from "./ClickOutside";
 import SidebarItem from "./SidebarItem";
-import SidebarItemWithDropdown from "./SidebarItem(Dropdown)"; // Add this import
+import SidebarItemWithDropdown from "./SidebarItem(Dropdown)";
 import UserProfile from "../Sidebar/UserProfile";
 import { Link } from "react-router-dom";
 
@@ -39,10 +39,11 @@ const Sidebar = ({ expanded, setExpanded }) => {
     { text: "Upload Image", to: "/url-scan/image" },
   ];
 
-  // Define dropdown items for Support
+  // Define dropdown items for Support with Cybersecurity Courses added
   const supportItems = [
     { text: "Chatbot Assistance", to: "/support/chatbot" },
     { text: "TrustLens Info Center", to: "/support/info" },
+    { text: "Cybersecurity Courses", to: "/cybersecurity-course" },
   ];
 
   return (
@@ -71,7 +72,7 @@ const Sidebar = ({ expanded, setExpanded }) => {
           </div>
 
           <SidebarContext.Provider value={{ expanded }}>
-            <ul className="flex-1 px-3 py-2"> {/* Added py-2 for consistent vertical padding */}
+            <ul className="flex-1 px-3 py-2">
               <SidebarItem
                 icon={<HomeIcon className="w-8 h-8" />}
                 text="Home"

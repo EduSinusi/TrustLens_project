@@ -175,7 +175,7 @@ const Dashboard = () => {
             loop={true}
             style={{ width: 300, height: 240, marginRight: 40 }}
           />
-          <h1 className="text-7xl font-bold text-gray-900 font-sans">
+          <h1 className="text-7xl font-extrabold bg-gray-700 text-transparent bg-clip-text leading-tight">
             TrustLens Analytics
           </h1>
         </div>
