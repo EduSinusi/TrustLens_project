@@ -18,11 +18,13 @@ const WebcamScan = () => {
     overall: "",
     details: {},
   });
-  const [geminiSummary, setGeminiSummary] = useState("");  // Added to store Gemini summary
+  const [geminiSummary, setGeminiSummary] = useState(""); // Added to store Gemini summary
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true);
   const [notification, setNotification] = useState("");
   const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  const [currentTime, setCurrentTime] = useState(
+    new Date().toLocaleTimeString()
+  );
   const [isCameraMenuOpen, setIsCameraMenuOpen] = useState(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [isPipMode, setIsPipMode] = useState(false);
@@ -70,7 +72,9 @@ const WebcamScan = () => {
 
   useEffect(() => {
     const pipData = {
-      feedUrl: webcamOn ? `http://localhost:8000/video_feed/${cameraIndex}` : "",
+      feedUrl: webcamOn
+        ? `http://localhost:8000/video_feed/${cameraIndex}`
+        : "",
       webcamOn,
       isPipMode,
     };
@@ -118,7 +122,7 @@ const WebcamScan = () => {
       const data = await response.json();
       setExtractedUrl("");
       setSafetyStatus({ overall: "", details: {} });
-      setGeminiSummary("");  // Reset Gemini summary
+      setGeminiSummary(""); // Reset Gemini summary
       setWebcamOn(false);
       setScanning(false);
       setLoading(false);
@@ -131,7 +135,9 @@ const WebcamScan = () => {
 
   const switchCamera = async (index) => {
     try {
-      const response = await fetch(`http://localhost:8000/switch_camera/${index}`);
+      const response = await fetch(
+        `http://localhost:8000/switch_camera/${index}`
+      );
       const data = await response.json();
       setCameraIndex(index);
       setScanning(false);
@@ -157,7 +163,7 @@ const WebcamScan = () => {
         setScanning(true);
         setExtractedUrl("");
         setSafetyStatus({ overall: "", details: {} });
-        setGeminiSummary("");  // Reset Gemini summary
+        setGeminiSummary(""); // Reset Gemini summary
         setNotification("");
         console.log(data.message);
       } else {
@@ -190,15 +196,17 @@ const WebcamScan = () => {
       });
       const data = await response.json();
       console.log("Backend response from get_url:", data);
-  
+
       if (data.evaluating) {
         setLoading(true);
         console.log("Backend is evaluating URL, loading set to true");
       } else if (data.url && !data.evaluating) {
         console.log("URL detected and evaluation complete:", data.url);
         setExtractedUrl(data.url);
-        setSafetyStatus(data.safety_status || { overall: "Unknown", details: {} });
-        setGeminiSummary(data.gemini_summary || "No summary available");  // Store Gemini summary
+        setSafetyStatus(
+          data.safety_status || { overall: "Unknown", details: {} }
+        );
+        setGeminiSummary(data.gemini_summary || "No summary available"); // Store Gemini summary
         setLoading(false);
         console.log("Evaluation complete, loading set to false");
         await stopScan();
@@ -301,10 +309,14 @@ const WebcamScan = () => {
             onClick={toggleNavMenu}
             className="flex items-center px-2 py-1 rounded-md hover:bg-gray-300 transition-all"
           >
-            <h1 className="text-3xl font-bold ml-2 text-gray-800">TrustLens Live Scan</h1>
+            <h1 className="text-3xl font-bold bg-gray-700 text-transparent bg-clip-text leading-tight">
+              TrustLens Live Scan
+            </h1>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className={`h-5 w-5 ml-3 transition-transform duration-300 ${isNavMenuOpen ? "rotate-180" : ""}`}
+              className={`h-5 w-5 ml-3 transition-transform duration-300 ${
+                isNavMenuOpen ? "rotate-180" : ""
+              }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -341,7 +353,11 @@ const WebcamScan = () => {
           <div className="relative">
             {webcamOn && (
               <div
-                className={`absolute top-2 left-2 text-white px-2 py-1 rounded-md flex items-center shadow-md group ${webcamError ? "bg-gradient-to-r from-yellow-600 to-yellow-500" : "bg-gradient-to-r from-red-600 to-red-500"} z-10`}
+                className={`absolute top-2 left-2 text-white px-2 py-1 rounded-md flex items-center shadow-md group ${
+                  webcamError
+                    ? "bg-gradient-to-r from-yellow-600 to-yellow-500"
+                    : "bg-gradient-to-r from-red-600 to-red-500"
+                } z-10`}
               >
                 <span className="h-2 w-2 bg-white rounded-full mr-1 animate-heartbeat"></span>
                 <span className="text-xs font-bold">LIVE</span>
@@ -376,7 +392,9 @@ const WebcamScan = () => {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    <p className="text-blue-500 font-medium">Evaluating URL...</p>
+                    <p className="text-blue-500 font-medium">
+                      Evaluating URL...
+                    </p>
                   </div>
                 ) : feedError ? (
                   <div className="w-full h-full flex items-center justify-center text-gray-500">
@@ -397,7 +415,11 @@ const WebcamScan = () => {
                 <button
                   onClick={togglePipMode}
                   className="absolute bottom-2 right-2 bg-gray-800 text-white p-2 rounded-full shadow-md hover:bg-gray-700 transition-all z-10"
-                  title={isPipMode ? "Exit Picture-in-Picture Mode" : "Enter Picture-in-Picture Mode"}
+                  title={
+                    isPipMode
+                      ? "Exit Picture-in-Picture Mode"
+                      : "Enter Picture-in-Picture Mode"
+                  }
                 >
                   <PiPictureInPicture className="h-5 w-5" />
                 </button>
@@ -425,7 +447,9 @@ const WebcamScan = () => {
                   ) : (
                     <button
                       onClick={startScan}
-                      className={`bg-gradient-to-r font-semibold from-green-600 to-green-500 text-white rounded-md py-2 px-4 flex items-center shadow-md hover:from-green-500 hover:to-green-400 transition-all ${webcamError ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`bg-gradient-to-r font-semibold from-green-600 to-green-500 text-white rounded-md py-2 px-4 flex items-center shadow-md hover:from-green-500 hover:to-green-400 transition-all ${
+                        webcamError ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
                       disabled={webcamError}
                     >
                       <FaCirclePlay className="w-6 h-6 mr-2" />
@@ -448,7 +472,9 @@ const WebcamScan = () => {
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className={`h-5 w-5 transition-transform duration-300 ${isCameraMenuOpen ? "rotate-180" : ""}`}
+                        className={`h-5 w-5 transition-transform duration-300 ${
+                          isCameraMenuOpen ? "rotate-180" : ""
+                        }`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -467,13 +493,17 @@ const WebcamScan = () => {
                     <div className="absolute bottom-13 left-[59%] transform -translate-x-1/2 bg-gray-800 text-white rounded-md shadow-lg border border-gray-700 z-50 w-48">
                       <button
                         onClick={() => switchCamera(0)}
-                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${cameraIndex === 0 ? "bg-gray-700" : ""}`}
+                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${
+                          cameraIndex === 0 ? "bg-gray-700" : ""
+                        }`}
                       >
                         Laptop Webcam
                       </button>
                       <button
                         onClick={() => switchCamera(1)}
-                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${cameraIndex === 1 ? "bg-gray-700" : ""}`}
+                        className={`block w-full text-left font-semibold px-4 py-2 text-md hover:bg-gray-700 ${
+                          cameraIndex === 1 ? "bg-gray-700" : ""
+                        }`}
                       >
                         External Webcam
                       </button>
@@ -505,7 +535,7 @@ const WebcamScan = () => {
           <UrlAnalysis
             extractedUrl={extractedUrl}
             safetyStatus={safetyStatus}
-            gemini_summary={geminiSummary}  // Pass the stored Gemini summary
+            gemini_summary={geminiSummary} // Pass the stored Gemini summary
             isAnalysisOpen={isAnalysisOpen}
             toggleAnalysis={toggleAnalysis}
             isLoading={loading}

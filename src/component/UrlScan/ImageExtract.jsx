@@ -127,7 +127,7 @@ const ImageExtract = () => {
             onClick={toggleNavMenu}
             className="flex items-center px-4 py-2 rounded-md hover:bg-gray-100 transition-all duration-300"
           >
-            <h1 className="text-3xl font-bold text-gray-800">
+            <h1 className="text-3xl font-bold bg-gray-700 text-transparent bg-clip-text leading-tight">
               TrustLens Image Scan
             </h1>
             <svg

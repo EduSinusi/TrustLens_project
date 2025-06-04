@@ -100,7 +100,7 @@ const UrlSearchBar = () => {
             onClick={toggleNavMenu}
             className="flex items-center px-2 py-1 rounded-md hover:bg-gray-300 transition-all"
           >
-            <h1 className="text-3xl font-bold ml-2 text-gray-800">
+            <h1 className="text-3xl font-bold bg-gray-700 text-transparent bg-clip-text leading-tight">
               TrustLens Safe Search
             </h1>
             <svg
