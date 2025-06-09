@@ -180,7 +180,7 @@ const Dashboard = () => {
           </h1>
         </div>
 
-        <SummaryStats analyticsData={analyticsData} />
+        <SummaryStats analyticsData={analyticsData} user={user} />
         <Filters
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}

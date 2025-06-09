@@ -1,12 +1,29 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FaShieldAlt } from "react-icons/fa";
 import { SiDowndetector } from "react-icons/si";
 import { ImBlocked } from "react-icons/im";
 import { MdFeedback } from "react-icons/md";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../../firebase/firebase";
 
-const SummaryStats = ({ analyticsData }) => {
-  // Assuming 7 feedback documents from the user_feedback collection for UID mj373S4FU3YUcMsWndwSpq147s43
-  const totalFeedback = 7;
+const SummaryStats = ({ analyticsData, user }) => {
+  const [totalFeedback, setTotalFeedback] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = onSnapshot(
+      collection(db, "users", user.uid, "user_feedback"),
+      (snapshot) => {
+        setTotalFeedback(snapshot.size);
+      },
+      (error) => {
+        console.error("Error fetching feedback:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
