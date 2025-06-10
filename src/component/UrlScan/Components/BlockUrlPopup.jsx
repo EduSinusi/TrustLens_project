@@ -1,7 +1,14 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-const BlockUrlPopup = ({ isOpen, onClose, onBlock, url, isBlocking }) => {
+const BlockUrlPopup = ({
+  isOpen,
+  onClose,
+  onBlock,
+  url,
+  isBlocking,
+  maliciousEngineCount = 0,
+}) => {
   if (!isOpen) return null;
 
   const handleBlockClick = (e) => {
@@ -35,8 +42,16 @@ const BlockUrlPopup = ({ isOpen, onClose, onBlock, url, isBlocking }) => {
           Block Unsafe URL?
         </h2>
         <p className="text-gray-700 mb-4">
-          The URL <span className="font-semibold">{url}</span> has been detected as unsafe. Would you like to block it?
+          The URL <span className="font-semibold">{url}</span> has been detected
+          as unsafe. Would you like to block it?
         </p>
+        {maliciousEngineCount > 0 && maliciousEngineCount < 5 && (
+          <p className="text-yellow-600 text-sm mb-4">
+            Disclaimer: Only {maliciousEngineCount} security engine
+            {maliciousEngineCount > 1 ? "s" : ""} deemed this URL as unsafe. You
+            may optionally continue browsing with precaution.
+          </p>
+        )}
         {isBlocking && (
           <p className="text-blue-600 mb-4 flex items-center">
             <svg
@@ -88,7 +103,8 @@ BlockUrlPopup.propTypes = {
   onClose: PropTypes.func.isRequired,
   onBlock: PropTypes.func.isRequired,
   url: PropTypes.string.isRequired,
-  isBlocking: PropTypes.bool.isRequired, // Added for loading state
+  isBlocking: PropTypes.bool.isRequired,
+  maliciousEngineCount: PropTypes.number, // Number of engines flagging as unsafe
 };
 
 export default BlockUrlPopup;

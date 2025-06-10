@@ -3,7 +3,12 @@ import PropTypes from "prop-types";
 import InfoBubble from "../InfoBubble";
 import VirusTotalFullResultPopup from "./popupvirustotal";
 
-const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
+const VirusTotalAnalysis = ({
+  safetyStatus,
+  extractedUrl,
+  showDisclaimer,
+  maliciousEngineCount,
+}) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
   const formatMessage = (message) => {
@@ -125,6 +130,15 @@ const VirusTotalAnalysis = ({ safetyStatus, extractedUrl }) => {
           </span>
         </p>
 
+        {showDisclaimer && (
+          <p className="text-yellow-600 text-sm">
+            Disclaimer: Only {maliciousEngineCount} security engine
+            {maliciousEngineCount > 1 ? "s" : ""} deemed this URL as unsafe,
+            while TrustLens Domain Security Check marked it as safe. You may
+            optionally continue browsing with precaution.
+          </p>
+        )}
+
         {status !== "Not Scanned" && (
           <div className="text-xs text-blue-600">
             <button
@@ -152,10 +166,15 @@ VirusTotalAnalysis.propTypes = {
       virustotal: PropTypes.shape({
         status: PropTypes.string,
         message: PropTypes.string,
+        stats: PropTypes.shape({
+          malicious: PropTypes.number,
+        }),
       }),
     }),
   }).isRequired,
   extractedUrl: PropTypes.string.isRequired,
+  showDisclaimer: PropTypes.bool,
+  maliciousEngineCount: PropTypes.number,
 };
 
 export default VirusTotalAnalysis;

@@ -21,9 +21,11 @@ const UrlAnalysis = ({
 }) => {
   const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
   const [isBlockPopupOpen, setIsBlockPopupOpen] = useState(false);
-  const [blockStatus, setBlockStatus] = useState(safetyStatus?.details?.url_info?.block_status || null);
+  const [blockStatus, setBlockStatus] = useState(
+    safetyStatus?.details?.url_info?.block_status || null
+  );
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
-  const [isBlocking, setIsBlocking] = useState(false); // Added for loading state
+  const [isBlocking, setIsBlocking] = useState(false);
   const { fetchWithAuth, token, user } = useAuth();
 
   const mapOverallSafetyStatus = (backendStatus) => {
@@ -78,6 +80,13 @@ const UrlAnalysis = ({
     ? getBlockStatusDisplay(blockStatus)
     : { text: "Not Blocked", className: "text-gray-600" };
 
+  // Calculate malicious engine count from VirusTotal stats
+  const maliciousEngineCount =
+    safetyStatus?.details?.virustotal?.stats?.malicious || 0;
+
+  // Check if TrustLens deems the URL safe
+  const isTrustLensSafe = safetyStatus?.details?.url_info?.status === "Safe";
+
   useEffect(() => {
     console.log("Popup trigger conditions:", {
       overallSafetyStatus,
@@ -124,7 +133,7 @@ const UrlAnalysis = ({
       return;
     }
 
-    setIsBlocking(true); // Set loading state to true
+    setIsBlocking(true);
     try {
       const response = await fetchWithAuth("http://localhost:8000/block_url", {
         method: "POST",
@@ -139,7 +148,10 @@ const UrlAnalysis = ({
       console.log("Block URL response data:", data);
 
       if (response.ok) {
-        console.log("Block successful, updating blockStatus to:", data.block_status);
+        console.log(
+          "Block successful, updating blockStatus to:",
+          data.block_status
+        );
         setBlockStatus(data.block_status);
         setIsBlockPopupOpen(false);
         setToast({
@@ -165,7 +177,7 @@ const UrlAnalysis = ({
         type: "error",
       });
     } finally {
-      setIsBlocking(false); // Reset loading state
+      setIsBlocking(false);
     }
   };
 
@@ -275,7 +287,8 @@ const UrlAnalysis = ({
                   >
                     {blockStatusDisplay.text}
                   </span>
-                  {blockStatusDisplay.text === "Not Blocked - Login Required" && (
+                  {blockStatusDisplay.text ===
+                    "Not Blocked - Login Required" && (
                     <span className="text-sm text-yellow-600 ml-2">
                       (Please log in to enable blocking)
                     </span>
@@ -291,6 +304,8 @@ const UrlAnalysis = ({
               <VirusTotalAnalysis
                 safetyStatus={safetyStatus}
                 extractedUrl={extractedUrl}
+                showDisclaimer={maliciousEngineCount < 5 && isTrustLensSafe}
+                maliciousEngineCount={maliciousEngineCount}
               />
             )}
 
@@ -335,7 +350,8 @@ const UrlAnalysis = ({
         onClose={handleClosePopup}
         onBlock={handleBlockUrl}
         url={extractedUrl || ""}
-        isBlocking={isBlocking} // Pass the loading state
+        isBlocking={isBlocking}
+        maliciousEngineCount={maliciousEngineCount}
       />
     </div>
   );
@@ -348,7 +364,13 @@ UrlAnalysis.propTypes = {
     overall: PropTypes.string,
     message: PropTypes.string,
     details: PropTypes.shape({
-      virustotal: PropTypes.object,
+      virustotal: PropTypes.shape({
+        status: PropTypes.string,
+        message: PropTypes.string,
+        stats: PropTypes.shape({
+          malicious: PropTypes.number,
+        }),
+      }),
       url_info: PropTypes.shape({
         status: PropTypes.string,
         block_status: PropTypes.string,
