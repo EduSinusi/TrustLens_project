@@ -7,7 +7,7 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase/firebase";
 
 const SummaryStats = ({ analyticsData, user }) => {
-  const [totalFeedback, setTotalFeedback] = useState(0);
+  const [totalNotes, setTotalNotes] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -15,10 +15,10 @@ const SummaryStats = ({ analyticsData, user }) => {
     const unsubscribe = onSnapshot(
       collection(db, "users", user.uid, "user_feedback"),
       (snapshot) => {
-        setTotalFeedback(snapshot.size);
+        setTotalNotes(snapshot.size);
       },
       (error) => {
-        console.error("Error fetching feedback:", error);
+        console.error("Error fetching notes:", error);
       }
     );
 
@@ -58,10 +58,10 @@ const SummaryStats = ({ analyticsData, user }) => {
         <div className="flex items-center">
           <MdFeedback className="h-7 w-7 text-blue-600 mr-4" />
           <h2 className="text-lg font-semibold text-gray-800">
-            Feedback Provided
+            Personal Notes Added
           </h2>
         </div>
-        <p className="text-3xl font-bold text-gray-900 mt-3">{totalFeedback}</p>
+        <p className="text-3xl font-bold text-gray-900 mt-3">{totalNotes}</p>
       </div>
     </div>
   );

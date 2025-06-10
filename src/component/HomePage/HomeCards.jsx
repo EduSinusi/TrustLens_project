@@ -1,6 +1,17 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { FaSearch, FaCamera, FaImage } from "react-icons/fa";
+import {
+  FaSearch,
+  FaCamera,
+  FaImage,
+  FaTachometerAlt,
+  FaHistory,
+  FaBook,
+  FaRobot,
+  FaQuestionCircle,
+  FaInfoCircle,
+  FaGraduationCap,
+} from "react-icons/fa";
 
 const HomeCards = () => {
   return (
@@ -58,6 +69,67 @@ const HomeCards = () => {
               Start Image Scan
             </button>
           </Link>
+        </div>
+
+        {/* Mini Cards Section */}
+        <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mt-4">
+          {/* Dashboard Card */}
+          <div className="flex flex-col items-center rounded-xl bg-gray-50 shadow-md p-4 hover:shadow-lg transition-all duration-200 border-t-2 border-sky-500">
+            <div className="bg-sky-100 p-2 rounded-full mb-2">
+              <FaTachometerAlt className="w-6 h-6 text-sky-600" />
+            </div>
+            <h4 className="text-lg font-medium text-gray-700 mb-2">
+              Dashboard
+            </h4>
+            <Link to="/dashboard">
+              <button className="bg-sky-600 text-white px-3 py-1 text-sm font-medium rounded hover:bg-sky-700 transition-colors">
+                View Dashboard
+              </button>
+            </Link>
+          </div>
+
+          {/* Scan History Card */}
+          <div className="flex flex-col items-center rounded-xl bg-gray-50 shadow-md p-4 hover:shadow-lg transition-all duration-200 border-t-2 border-sky-500">
+            <div className="bg-sky-100 p-2 rounded-full mb-2">
+              <FaHistory className="w-6 h-6 text-sky-600" />
+            </div>
+            <h4 className="text-lg font-medium text-gray-700 mb-2">
+              Scan History
+            </h4>
+            <Link to="/scan-history">
+              <button className="bg-sky-600 text-white px-3 py-1 text-sm font-medium rounded hover:bg-sky-700 transition-colors">
+                View History
+              </button>
+            </Link>
+          </div>
+
+          {/* AI Chatbot Card */}
+          <div className="flex flex-col items-center rounded-xl bg-gray-50 shadow-md p-4 hover:shadow-lg transition-all duration-200 border-t-2 border-sky-500">
+            <div className="bg-sky-100 p-2 rounded-full mb-2">
+              <FaRobot className="w-6 h-6 text-sky-600" />
+            </div>
+            <h4 className="text-lg font-medium text-gray-700 mb-2">
+              AI Chatbot
+            </h4>
+            <Link to="/support/chatbot">
+              <button className="bg-sky-600 text-white px-3 py-1 text-sm font-medium rounded hover:bg-sky-700 transition-colors">
+                Chat Now
+              </button>
+            </Link>
+          </div>
+
+          {/* Quiz Card */}
+          <div className="flex flex-col items-center rounded-xl bg-gray-50 shadow-md p-4 hover:shadow-lg transition-all duration-200 border-t-2 border-sky-500">
+            <div className="bg-sky-100 p-2 rounded-full mb-2">
+              <FaQuestionCircle className="w-6 h-6 text-sky-600" />
+            </div>
+            <h4 className="text-lg font-medium text-gray-700 mb-2">Quiz</h4>
+            <Link to="/cybersecurity-quiz">
+              <button className="bg-sky-600 text-white px-3 py-1 text-sm font-medium rounded hover:bg-sky-700 transition-colors">
+                Take Quiz
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

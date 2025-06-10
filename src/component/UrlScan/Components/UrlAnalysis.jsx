@@ -6,7 +6,7 @@ import InfoBubble from "./InfoBubble";
 import GeminiSummarySection from "./Gemini Summary/gemini_summary";
 import VirusTotalAnalysis from "../Components/APIs/virustotal";
 import TrustLensSecurityCheck from "./Security Check/DomainSecurity";
-import FeedbackFormPopup from "./popupFeedbackForm";
+import PersonalNotePopup from "./popupFeedbackForm";
 import BlockUrlPopup from "./BlockUrlPopup";
 import useAuth from "../../../firebase/useAuth";
 
@@ -19,7 +19,7 @@ const UrlAnalysis = ({
   gemini_summary,
   userId,
 }) => {
-  const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
+  const [isNotePopupOpen, setIsNotePopupOpen] = useState(false);
   const [isBlockPopupOpen, setIsBlockPopupOpen] = useState(false);
   const [blockStatus, setBlockStatus] = useState(
     safetyStatus?.details?.url_info?.block_status || null
@@ -80,11 +80,9 @@ const UrlAnalysis = ({
     ? getBlockStatusDisplay(blockStatus)
     : { text: "Not Blocked", className: "text-gray-600" };
 
-  // Calculate malicious engine count from VirusTotal stats
   const maliciousEngineCount =
     safetyStatus?.details?.virustotal?.stats?.malicious || 0;
 
-  // Check if TrustLens deems the URL safe
   const isTrustLensSafe = safetyStatus?.details?.url_info?.status === "Safe";
 
   useEffect(() => {
@@ -287,8 +285,7 @@ const UrlAnalysis = ({
                   >
                     {blockStatusDisplay.text}
                   </span>
-                  {blockStatusDisplay.text ===
-                    "Not Blocked - Login Required" && (
+                  {blockStatusDisplay.text === "Not Blocked - Login Required" && (
                     <span className="text-sm text-yellow-600 ml-2">
                       (Please log in to enable blocking)
                     </span>
@@ -304,7 +301,7 @@ const UrlAnalysis = ({
               <VirusTotalAnalysis
                 safetyStatus={safetyStatus}
                 extractedUrl={extractedUrl}
-                showDisclaimer={maliciousEngineCount < 5 && isTrustLensSafe}
+                showDisclaimer={maliciousEngineCount > 0 && maliciousEngineCount < 5 && isTrustLensSafe}
                 maliciousEngineCount={maliciousEngineCount}
               />
             )}
@@ -319,14 +316,14 @@ const UrlAnalysis = ({
             {!isUrlNonExistent && safetyStatus?.details?.url_info && userId && (
               <div className="mt-2 flex justify-center">
                 <span className="text-gray-700 text-md font-semibold mr-3 flex justify-center items-center">
-                  Detected some suspicious behaviour?
+                  Want to add a note about this website?
                 </span>
                 <button
-                  onClick={() => setIsFeedbackPopupOpen(true)}
+                  onClick={() => setIsNotePopupOpen(true)}
                   className="flex items-center px-5 py-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none"
                 >
                   <FaPaperPlane className="mr-2" />
-                  Submit Feedback
+                  Add Personal Note
                 </button>
               </div>
             )}
@@ -338,11 +335,10 @@ const UrlAnalysis = ({
         )}
       </div>
 
-      <FeedbackFormPopup
-        isOpen={isFeedbackPopupOpen}
-        onClose={() => setIsFeedbackPopupOpen(false)}
+      <PersonalNotePopup
+        isOpen={isNotePopupOpen}
+        onClose={() => setIsNotePopupOpen(false)}
         url={extractedUrl || ""}
-        userId={userId}
       />
 
       <BlockUrlPopup

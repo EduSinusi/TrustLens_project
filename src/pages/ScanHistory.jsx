@@ -5,6 +5,7 @@ import OverallScanSection from "../component/History/OverallScanResult";
 import SafeScanSection from "../component/History/SafeScanSection";
 import UnsafeScanSection from "../component/History/UnsafeScanSection";
 import PotentiallyUnsafeScanSection from "../component/History/PotentiallyUnsafeSection";
+import PersonalNotesSection from "../component/History/PersonalNotes";
 import useAuth from "../firebase/useAuth";
 import Lottie from "lottie-react";
 import animationScanHistory from "../../src/assets/animation - scan history.json";
@@ -46,7 +47,7 @@ const ScanHistory = () => {
           showDetails: false,
         }));
 
-        console.log("Scan History Data:", scans); // Debug log to inspect data
+        console.log("Scan History Data:", scans);
         setScanHistory(scans);
       } catch (err) {
         console.error("Error fetching scan history:", err);
@@ -220,6 +221,16 @@ const ScanHistory = () => {
             >
               Potentially Unsafe
             </button>
+            <button
+              className={`py-3 px-6 font-semibold transition-all duration-200 ${
+                activeTab === "PersonalNotes"
+                  ? "border-b-4 border-indigo-600 text-indigo-600"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
+              onClick={() => setActiveTab("PersonalNotes")}
+            >
+              Personal Notes
+            </button>
           </div>
 
           {activeTab === "Overall" && (
@@ -266,6 +277,9 @@ const ScanHistory = () => {
               isSecurityPopupOpen={isSecurityPopupOpen}
               setIsSecurityPopupOpen={setIsSecurityPopupOpen}
             />
+          )}
+          {activeTab === "PersonalNotes" && (
+            <PersonalNotesSection scans={filteredScans} userId={user?.uid || ""} />
           )}
         </>
       )}

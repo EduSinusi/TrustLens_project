@@ -3,20 +3,18 @@ import PropTypes from "prop-types";
 import { auth, storage, db } from "../../../firebase/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth"; // Import for auth state listener
+import { onAuthStateChanged } from "firebase/auth";
 import { toast } from "react-toastify";
 
-const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
-  const [feedbackType, setFeedbackType] = useState("");
+const PersonalNotePopup = ({ isOpen, onClose, url }) => {
   const [comments, setComments] = useState("");
   const [screenshot, setScreenshot] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const popupRef = useRef(null);
-  const [userId, setUserId] = useState(null); // Track authenticated user ID
+  const [userId, setUserId] = useState(null);
 
-  // Monitor authentication state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -73,9 +71,9 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
     setError(null);
 
     if (!userId) {
-      setError("Please log in to submit feedback.");
+      setError("Please log in to add a personal note.");
       setLoading(false);
-      toast.error("Please log in to submit feedback.");
+      toast.error("Please log in to add a personal note.");
       return;
     }
 
@@ -84,9 +82,7 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
 
       if (screenshot) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const storagePath = `feedback-screenshots/${userId}/${encodeURIComponent(
-          url
-        )}-${timestamp}`;
+        const storagePath = `notes-screenshots/${userId}/${encodeURIComponent(url)}-${timestamp}`;
         const storageRef = ref(storage, storagePath);
 
         console.log("Uploading screenshot to:", storagePath);
@@ -95,50 +91,38 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
         console.log("Uploaded screenshot URL:", screenshotUrl);
       }
 
-      const feedbackData = {
+      const noteData = {
         url,
-        feedbackType,
         comments,
         timestamp: Timestamp.fromDate(new Date()),
         userId,
       };
 
       if (screenshotUrl) {
-        feedbackData.screenshotUrl = screenshotUrl;
+        noteData.screenshotUrl = screenshotUrl;
       }
 
-      console.log("Submitting feedback data:", feedbackData);
+      console.log("Submitting note data:", noteData);
 
-      // Store in user-specific collection: users/{userId}/user_feedback
-      const userFeedbackCollectionRef = collection(
-        db,
-        `users/${userId}/user_feedback`
-      );
-      await addDoc(userFeedbackCollectionRef, feedbackData);
-      console.log("Successfully wrote to users/${userId}/user_feedback");
+      const userNotesCollectionRef = collection(db, `users/${userId}/user_feedback`);
+      await addDoc(userNotesCollectionRef, noteData);
+      console.log(`Successfully wrote to users/${userId}/user_feedback`);
 
-      // Store in global collection: UserFeedback
-      const globalFeedbackCollectionRef = collection(db, "UserFeedback");
-      await addDoc(globalFeedbackCollectionRef, feedbackData);
-      console.log("Successfully wrote to UserFeedback");
-
-      toast.success("Feedback submitted successfully!");
-      setFeedbackType("");
+      toast.success("Personal note added successfully!");
       setComments("");
       setScreenshot(null);
       setPreviewUrl(null);
       onClose();
     } catch (err) {
-      setError("Failed to submit feedback: " + err.message);
-      toast.error("Failed to submit feedback: " + err.message);
-      console.error("Feedback submission error:", err);
+      setError("Failed to add note: " + err.message);
+      toast.error("Failed to add note: " + err.message);
+      console.error("Note submission error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setFeedbackType("");
     setComments("");
     setScreenshot(null);
     setPreviewUrl(null);
@@ -156,7 +140,7 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
       >
         <div className="bg-gradient-to-r from-sky-600 to-blue-600 text-white text-center py-4 rounded-t-2xl animate-pulse-once">
           <h3 className="text-2xl font-bold tracking-wide">
-            Submit Your Feedback
+            Add Personal Note
           </h3>
         </div>
 
@@ -172,38 +156,9 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               id="url"
               type="text"
               value={url}
-              className="mt-2 block w-full rounded-lg border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
+              className="mt-2 block w-full rounded-lg border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed px-4 py- personally-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
               disabled
             />
-          </div>
-
-          <div>
-            <label
-              htmlFor="feedbackType"
-              className="block text-lg font-semibold text-gray-700 ml-1"
-            >
-              Feedback Type
-            </label>
-            <select
-              id="feedbackType"
-              value={feedbackType}
-              onChange={(e) => setFeedbackType(e.target.value)}
-              className="mt-2 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 transition duration-200 ease-in-out hover:bg-gray-50"
-              required
-              disabled={loading}
-            >
-              <option value="" disabled className="text-gray-400">
-                Select feedback type
-              </option>
-              <option value="False Positive">
-                False Positive (Incorrectly marked unsafe)
-              </option>
-              <option value="False Negative">
-                False Negative (Incorrectly marked safe)
-              </option>
-              <option value="Suspicious Behavior">Suspicious Behavior</option>
-              <option value="Other">Other</option>
-            </select>
           </div>
 
           <div>
@@ -211,7 +166,7 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               htmlFor="comments"
               className="block text-lg font-semibold text-gray-700 ml-1"
             >
-              Comments
+              Note
             </label>
             <textarea
               id="comments"
@@ -219,7 +174,7 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               onChange={(e) => setComments(e.target.value)}
               className="mt-2 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 transition duration-200 ease-in-out hover:bg-gray-50 resize-y"
               rows={5}
-              placeholder="Describe the issue or suggestion..."
+              placeholder="Add your personal note about this website..."
               required
               disabled={loading}
             />
@@ -271,7 +226,7 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
               className="px-6 py-2 bg-gradient-to-r from-sky-600 to-blue-600 text-white font-semibold rounded-lg shadow-md hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 disabled:opacity-50"
               disabled={loading}
             >
-              {loading ? "Submitting..." : "Submit"}
+              {loading ? "Adding Note..." : "Add Note"}
             </button>
           </div>
         </form>
@@ -280,10 +235,10 @@ const FeedbackFormPopup = ({ isOpen, onClose, url }) => {
   );
 };
 
-FeedbackFormPopup.propTypes = {
+PersonalNotePopup.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   url: PropTypes.string.isRequired,
 };
 
-export default FeedbackFormPopup;
+export default PersonalNotePopup;
