@@ -187,7 +187,7 @@ def evaluate_url(url: str) -> tuple[dict, str]:
         overall = "Potentially Unsafe"
         message = "VirusTotal found suspicious detections, but TrustLens indicates safe"
     elif virustotal_status == "Safe" and url_info_status == "Potentially Unsafe":
-        overall = "Safe"
+        overall = "Potentially Unsafe"
         message = "VirusTotal indicates safe, but TrustLens Domain Security Check found potential risks"
     elif virustotal_status == "Unsafe" and url_info_status == "Potentially Unsafe":
         overall = "Unsafe"

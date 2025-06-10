@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { auth } from "../firebase/firebase";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { signInWithEmailAndPassword, getIdToken } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  getIdToken,
+  RecaptchaVerifier,
+} from "firebase/auth";
 import { toast } from "react-toastify";
 import { BsBoxArrowLeft } from "react-icons/bs";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
@@ -28,20 +32,92 @@ export default function UserLogIn() {
     }
   };
 
+  // Setup and cleanup reCAPTCHA verifier
+  useEffect(() => {
+    let recaptchaVerifier;
+    if (!window.recaptchaVerifier) {
+      recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "normal", // Visible checkbox
+        callback: (response) => {
+          console.log("reCAPTCHA verified:", response);
+        },
+        "expired-callback": () => {
+          setError("reCAPTCHA verification expired. Please try again.");
+          renderRecaptcha(); // Re-render on expiration
+        },
+      });
+      window.recaptchaVerifier = recaptchaVerifier;
+    } else {
+      recaptchaVerifier = window.recaptchaVerifier;
+    }
+
+    // Render the reCAPTCHA widget
+    const renderRecaptcha = () => {
+      recaptchaVerifier
+        .render()
+        .then((widgetId) => {
+          window.recaptchaWidgetId = widgetId;
+        })
+        .catch((err) => {
+          console.error("Failed to render reCAPTCHA:", err);
+          setError("Failed to load reCAPTCHA. Please refresh the page.");
+        });
+    };
+    renderRecaptcha();
+
+    // Cleanup function to reset reCAPTCHA on unmount or re-render
+    return () => {
+      if (recaptchaVerifier && window.recaptchaWidgetId) {
+        window.recaptchaVerifier.reset(window.recaptchaWidgetId);
+        delete window.recaptchaVerifier;
+        delete window.recaptchaWidgetId;
+      }
+    };
+  }, []); // Empty dependency array ensures it runs only on mount
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await storeToken(userCredential.user);
-      console.log("User logged in successfully");
-      toast.success("Log in Successful!");
-      navigate("/home");
+      const recaptchaVerifier = window.recaptchaVerifier;
+      if (!recaptchaVerifier) {
+        setError("reCAPTCHA not initialized. Please refresh the page.");
+        setLoading(false);
+        return;
+      }
+      // Ensure reCAPTCHA is verified before proceeding
+      recaptchaVerifier
+        .verify()
+        .then(() => {
+          signInWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+              storeToken(userCredential.user);
+              console.log("User logged in successfully");
+              toast.success("Log in Successful!");
+              navigate("/home");
+            })
+            .catch((err) => {
+              setError(err.message);
+              toast.error("Login failed: " + err.message);
+            })
+            .finally(() => setLoading(false));
+        })
+        .catch((err) => {
+          setError(
+            "Please complete the reCAPTCHA verification: " + err.message
+          );
+          toast.error(
+            "Please complete the reCAPTCHA verification: " + err.message
+          );
+          recaptchaVerifier.render().catch((renderErr) => {
+            console.error("Failed to render reCAPTCHA:", renderErr);
+          });
+          setLoading(false);
+        });
     } catch (err) {
       setError(err.message);
       toast.error("Login failed: " + err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -49,18 +125,48 @@ export default function UserLogIn() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      await storeToken(result.user);
-      console.log("Successfully signed in:", result.user.displayName);
-      toast.success("Log in Successful!");
-      navigate("/home");
+      const recaptchaVerifier = window.recaptchaVerifier;
+      if (!recaptchaVerifier) {
+        setError("reCAPTCHA not initialized. Please refresh the page.");
+        setLoading(false);
+        return;
+      }
+      // Ensure reCAPTCHA is verified before proceeding
+      recaptchaVerifier
+        .verify()
+        .then(() => {
+          const provider = new GoogleAuthProvider();
+          signInWithPopup(auth, provider)
+            .then((result) => {
+              storeToken(result.user);
+              console.log("Successfully signed in:", result.user.displayName);
+              toast.success("Log in Successful!");
+              navigate("/home");
+            })
+            .catch((err) => {
+              setError(err.message);
+              console.error("Google Sign-in Error:", err);
+              toast.error("Login failed: " + err.message);
+            })
+            .finally(() => setLoading(false));
+        })
+        .catch((err) => {
+          setError(
+            "Please complete the reCAPTCHA verification: " + err.message
+          );
+          toast.error(
+            "Please complete the reCAPTCHA verification: " + err.message
+          );
+          recaptchaVerifier.render().catch((renderErr) => {
+            console.error("Failed to render reCAPTCHA:", renderErr);
+          });
+          setLoading(false);
+        });
     } catch (err) {
       setError(err.message);
       console.error("Google Sign-in Error:", err);
       toast.error("Login failed: " + err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -76,7 +182,7 @@ export default function UserLogIn() {
         <Link to="/welcome" className="flex items-center space-x-2">
           <BsBoxArrowLeft className="w-5 h-5 text-slate-300 mr-3" />
           <h1 className="text-[15px] font-semibold text-slate-300 hover:underline">
-            Back 
+            Back
           </h1>
         </Link>
       </div>
@@ -181,6 +287,9 @@ export default function UserLogIn() {
               Sign in with Google
             </button>
           </div>
+
+          {/* reCAPTCHA container for visible checkbox */}
+          <div id="recaptcha-container" className="mb-4"></div>
         </form>
         {error && <p className="text-red-500 text-sm">{error}</p>}
         {/* Register link */}
