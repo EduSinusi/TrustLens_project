@@ -45,7 +45,7 @@ const OverallScanSection = ({
                     index % 2 === 0 ? "bg-white/50" : "bg-gray-50/50"
                   } hover:bg-gray-100/80`}
                 >
-                  <td className="py-4 px-6 w-[200px] font-medium text-gray-800">{scan.url}</td>
+                  <td className="py-4 px-6 w-[200px] max-w-[700px] font-medium text-gray-800 break-words">{scan.url}</td>
                   <td
                     className={`py-4 px-6 font-semibold ${
                       scan.safety_status.overall === "Safe"
