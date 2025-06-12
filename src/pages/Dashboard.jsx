@@ -46,7 +46,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = onSnapshot(
+    const unsubscribeScannedUrls = onSnapshot(
       collection(db, "users", user.uid, "scanned_urls"),
       (snapshot) => {
         setLoading(true);
@@ -128,7 +128,7 @@ const Dashboard = () => {
             })),
           };
 
-          setAnalyticsData(processedData);
+          setAnalyticsData((prevData) => ({ ...prevData, ...processedData }));
         } catch (error) {
           console.error("Error fetching analytics:", error);
         }
@@ -140,7 +140,24 @@ const Dashboard = () => {
       }
     );
 
-    return () => unsubscribe();
+    const unsubscribeBlockedList = onSnapshot(
+      collection(db, "users", user.uid, "blocked_list"),
+      (snapshot) => {
+        const blockedCount = snapshot.size;
+        setAnalyticsData((prevData) => ({
+          ...prevData,
+          blockedCount,
+        }));
+      },
+      (error) => {
+        console.error("Error fetching blocked list:", error);
+      }
+    );
+
+    return () => {
+      unsubscribeScannedUrls();
+      unsubscribeBlockedList();
+    };
   }, [user]);
 
   if (!user) {

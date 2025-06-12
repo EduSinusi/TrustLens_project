@@ -24,7 +24,6 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 urls_collection = db.collection('Scanned URLs')
-blocked_websites_collection = db.collection('Blocked Websites')
 
 def get_url_doc_id(url: str) -> str:
     """Generate a deterministic document ID from the URL using SHA-256."""
@@ -316,9 +315,9 @@ def store_url_in_firestore(url: str, safety_status: dict, gemini_summary: str, u
         }, severity="ERROR")
         raise
 
-def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_summary: str):
-    if not url:
-        logger.log_text("No URL provided to store as blocked website", severity="ERROR")
+def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_summary: str, user_uid: str = None):
+    if not url or not user_uid:
+        logger.log_text("No URL or user UID provided to store as blocked website", severity="ERROR")
         return
     
     if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
@@ -328,13 +327,15 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_sum
         }
         gemini_summary = "Error: Invalid safety status format"
     
-    # Check if URL is already blocked
-    existing = blocked_websites_collection.where("url", "==", url).limit(1).get()
+    # Check if URL is already blocked in user-specific blocked_list
+    doc_id = get_url_doc_id(url)
+    user_blocked_list_collection = db.collection('users').document(user_uid).collection('blocked_list')
+    existing = user_blocked_list_collection.where("url", "==", url).limit(1).get()
     if existing:
-        logger.log_text(f"URL {url} already blocked", severity="INFO")
+        logger.log_text(f"URL {url} already blocked for user {user_uid}", severity="INFO")
         return
     
-    # Store only the required fields: overall, message, url, and timestamp
+    # Store only the required fields: url, overall, message, and timestamp
     data = {
         "url": url,
         "overall": safety_status.get("overall", "Unknown"),
@@ -343,16 +344,18 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_sum
     }
     
     try:
-        blocked_websites_collection.add(data)
+        user_blocked_list_collection.document(doc_id).set(data)
         logger.log_struct({
-            "message": "Stored blocked website in Firestore",
+            "message": "Stored blocked website in user-specific blocked_list",
             "url": url,
+            "user_uid": user_uid,
             "data": data
         }, severity="INFO")
     except Exception as e:
         logger.log_struct({
-            "message": "Failed to store blocked website in Firestore",
+            "message": "Failed to store blocked website in user-specific blocked_list",
             "url": url,
+            "user_uid": user_uid,
             "error": str(e)
         }, severity="ERROR")
 
@@ -372,9 +375,13 @@ def process_and_block_url(url: str, user_uid: str = None, max_attempts: int = 2)
         attempt += 1
     
     block_status = None
-    if safety_status["overall"] == "Unsafe" and not user_uid:
-        block_status = "no_uid"
-        logger.log_text(f"Cannot block URL {url} due to missing user_uid", severity="INFO")
+    if safety_status["overall"] == "Unsafe" and user_uid:
+        blocked, status = block_unsafe_website(url)
+        if blocked:
+            store_blocked_website_in_firestore(url, safety_status, gemini_summary, user_uid)
+            block_status = status
+        else:
+            block_status = status
     
     if not safety_status.get("details"):
         safety_status["details"] = {}
@@ -388,7 +395,7 @@ def process_and_block_url(url: str, user_uid: str = None, max_attempts: int = 2)
 
 if __name__ == "__main__":
     test_url = "https://example.com"
-    safety, block, summary = process_and_block_url(test_url)
+    safety, block, summary = process_and_block_url(test_url, user_uid="test_user")
     logger.log_struct({
         "message": "Test URL processing completed",
         "url": test_url,

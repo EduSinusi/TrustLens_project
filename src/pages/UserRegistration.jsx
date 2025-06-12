@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { auth, db } from "../firebase/firebase";
 import { Link, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
@@ -6,6 +6,7 @@ import { BsBoxArrowLeft } from "react-icons/bs";
 import { toast } from "react-toastify";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+import { RecaptchaVerifier } from "firebase/auth";
 
 export default function UserRegistration() {
   const [firstName, setFirstName] = useState("");
@@ -17,36 +18,104 @@ export default function UserRegistration() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  // Setup and cleanup reCAPTCHA verifier
+  useEffect(() => {
+    let recaptchaVerifier;
+    if (!window.recaptchaVerifier) {
+      recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "normal", // Visible checkbox
+        callback: (response) => {
+          console.log("reCAPTCHA verified:", response);
+        },
+        "expired-callback": () => {
+          setError("reCAPTCHA verification expired. Please try again.");
+          renderRecaptcha(); // Re-render on expiration
+        },
+      });
+      window.recaptchaVerifier = recaptchaVerifier;
+    } else {
+      recaptchaVerifier = window.recaptchaVerifier;
+    }
+
+    // Render the reCAPTCHA widget
+    const renderRecaptcha = () => {
+      recaptchaVerifier
+        .render()
+        .then((widgetId) => {
+          window.recaptchaWidgetId = widgetId;
+        })
+        .catch((err) => {
+          console.error("Failed to render reCAPTCHA:", err);
+          setError("Failed to load reCAPTCHA. Please refresh the page.");
+        });
+    };
+    renderRecaptcha();
+
+    // Cleanup function to reset reCAPTCHA on unmount or re-render
+    return () => {
+      if (recaptchaVerifier && window.recaptchaWidgetId) {
+        window.recaptchaVerifier.reset(window.recaptchaWidgetId);
+        delete window.recaptchaVerifier;
+        delete window.recaptchaWidgetId;
+      }
+    };
+  }, []); // Empty dependency array ensures it runs only on mount
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      // Create user with email and password
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-
-      // Store additional user info in Firestore
-      await setDoc(doc(db, "UserInformation", user.uid), {
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        password: password,
-        photo: "",
-        createdAt: new Date().toISOString(),
-        // You can add more fields here as needed
-      });
-
-      console.log("User registered successfully");
-      toast.success("Registration Successful!");
-      navigate("/login");
+      const recaptchaVerifier = window.recaptchaVerifier;
+      if (!recaptchaVerifier) {
+        setError("reCAPTCHA not initialized. Please refresh the page.");
+        setLoading(false);
+        return;
+      }
+      // Ensure reCAPTCHA is verified before proceeding
+      recaptchaVerifier
+        .verify()
+        .then(() => {
+          // Create user with email and password
+          createUserWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+              const user = userCredential.user;
+              // Store additional user info in Firestore
+              return setDoc(doc(db, "UserInformation", user.uid), {
+                firstName: firstName,
+                lastName: lastName,
+                email: email,
+                password: password,
+                photo: "",
+                createdAt: new Date().toISOString(),
+              })
+                .then(() => {
+                  console.log("User registered successfully");
+                  toast.success("Registration Successful!");
+                  navigate("/login");
+                });
+            })
+            .catch((err) => {
+              setError(err.message);
+              toast.error("Registration failed: " + err.message);
+            })
+            .finally(() => setLoading(false));
+        })
+        .catch((err) => {
+          setError(
+            "Please complete the reCAPTCHA verification: " + err.message
+          );
+          toast.error(
+            "Please complete the reCAPTCHA verification: " + err.message
+          );
+          recaptchaVerifier.render().catch((renderErr) => {
+            console.error("Failed to render reCAPTCHA:", renderErr);
+          });
+          setLoading(false);
+        });
     } catch (err) {
       setError(err.message);
-    } finally {
+      toast.error("Registration failed: " + err.message);
       setLoading(false);
     }
   };
@@ -68,7 +137,6 @@ export default function UserRegistration() {
           </Link>
         </div>
         {/* Left side with logo */}
-
         <div className="w-[70%] flex items-center justify-center opacity-70">
           <div className="text-center">
             <img
@@ -171,6 +239,9 @@ export default function UserRegistration() {
                 )}
               </button>
             </div>
+
+            {/* reCAPTCHA container for visible checkbox */}
+            <div id="recaptcha-container" className="mb-4"></div>
 
             {/* Register Button */}
             <div className="text-center mt-4">

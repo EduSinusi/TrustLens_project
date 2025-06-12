@@ -14,14 +14,51 @@ export default function InfoCenterContent() {
     const query = searchQuery.toLowerCase();
     return Object.entries(contentData).reduce((acc, [heading, articles]) => {
       const filteredArticles = articles.filter(
-        ({ title }) => title.toLowerCase().includes(query) || heading.toLowerCase().includes(query)
+        ({ title }) =>
+          title.toLowerCase().includes(query) ||
+          heading.toLowerCase().includes(query)
       );
-      if (filteredArticles.length > 0 || heading.toLowerCase().includes(query)) {
+      if (
+        filteredArticles.length > 0 ||
+        heading.toLowerCase().includes(query)
+      ) {
         acc.push([heading, filteredArticles]);
       }
       return acc;
     }, []);
   }, [searchQuery]);
+
+  // Handle external link click similar to Beginner.jsx
+  const handleExternalLinkClick = (e, url) => {
+    const currentHost = window.location.hostname;
+    const linkHost = new URL(url, window.location.href).hostname;
+
+    if (linkHost !== currentHost && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      const confirmed = window.confirm(
+        "You are about to visit an external website. Do you want to proceed?"
+      );
+      if (confirmed) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    }
+  };
+
+  // Custom wrapper for Components to handle links
+  const WrappedComponent = ({ Component }) => {
+    const handleLinkClick = (e) => {
+      const anchor = e.target.closest("a");
+      if (anchor && anchor.href) {
+        handleExternalLinkClick(e, anchor.href);
+      }
+    };
+
+    return (
+      <div onClick={handleLinkClick}>
+        <Component />
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -48,7 +85,9 @@ export default function InfoCenterContent() {
         </svg>
       </div>
       {filteredSections.length === 0 && (
-        <p className="text-center text-gray-600 text-lg">No results found. Try a different search term!</p>
+        <p className="text-center text-gray-600 text-lg">
+          No results found. Try a different search term!
+        </p>
       )}
       <div className="space-y-5 text-base text-gray-800">
         {filteredSections.map(([heading, articles]) => (
@@ -87,7 +126,7 @@ export default function InfoCenterContent() {
                     <h4 className="font-bold text-gray-900 mb-3 text-lg">
                       {title}
                     </h4>
-                    <Component />
+                    <WrappedComponent Component={Component} />
                   </article>
                 ))}
               </div>

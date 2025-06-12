@@ -345,17 +345,18 @@ async def block_url(request: Request, user_uid: str = Depends(get_current_user))
         safety_status = doc.get("safety_status", {"overall": "Unknown", "details": {}})
         gemini_summary = doc.get("gemini_summary", "No summary available")
         
-        # Check if already blocked
-        existing = db.collection('Blocked Websites').where("url", "==", url).limit(1).get()
+        # Check if already blocked in user-specific blocked_list
+        user_blocked_list_collection = db.collection('users').document(user_uid).collection('blocked_list')
+        existing = user_blocked_list_collection.where("url", "==", url).limit(1).get()
         if existing:
-            logger.log_text(f"URL {url} already blocked", severity="INFO")
+            logger.log_text(f"URL {url} already blocked for user {user_uid}", severity="INFO")
             return {"block_status": "already_blocked"}
         
         # Block the website
         blocked, status = block_unsafe_website(url)
         if blocked:
-            # Store in Blocked Websites (will fix this in Issue 2)
-            store_blocked_website_in_firestore(url, safety_status, gemini_summary)
+            # Store in user-specific blocked_list
+            store_blocked_website_in_firestore(url, safety_status, gemini_summary, user_uid=user_uid)
             
             # Update block_status in safety_status for global Scanned URLs
             doc_ref = query[0].reference
@@ -363,7 +364,7 @@ async def block_url(request: Request, user_uid: str = Depends(get_current_user))
             doc_ref.update({"safety_status": safety_status})
             
             # Update user-specific scanned_urls subcollection
-            doc_id = get_url_doc_id(url)  # Use the same doc_id as in url_processor.py
+            doc_id = get_url_doc_id(url)
             user_urls_collection = db.collection('users').document(user_uid).collection('scanned_urls')
             user_doc_ref = user_urls_collection.document(doc_id)
             
@@ -373,7 +374,7 @@ async def block_url(request: Request, user_uid: str = Depends(get_current_user))
                 user_data = user_doc.to_dict()
                 # Update the safety_status with the new block_status
                 user_data["safety_status"] = safety_status
-                user_doc_ref.set(user_data)  # Update the user-specific document
+                user_doc_ref.set(user_data)
                 logger.log_struct({
                     "message": "Updated block_status in user-specific scanned_urls",
                     "url": url,
@@ -384,7 +385,7 @@ async def block_url(request: Request, user_uid: str = Depends(get_current_user))
             else:
                 logger.log_text(f"User-specific document for URL {url} not found for user {user_uid}", severity="WARNING")
             
-            logger.log_text(f"URL {url} blocked successfully", severity="INFO")
+            logger.log_text(f"URL {url} blocked successfully for user {user_uid}", severity="INFO")
             return {"block_status": status}
         else:
             logger.log_text(f"Failed to block URL {url}: {status}", severity="ERROR")
