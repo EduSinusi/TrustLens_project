@@ -9,6 +9,7 @@ import TrustLensSecurityCheck from "./Security Check/DomainSecurity";
 import PersonalNotePopup from "./popupFeedbackForm";
 import BlockUrlPopup from "./BlockUrlPopup";
 import useAuth from "../../../firebase/useAuth";
+import CommunityPopup from "./CommunityPopup"; // New import for community popup
 
 const UrlAnalysis = ({
   extractedUrl,
@@ -26,6 +27,7 @@ const UrlAnalysis = ({
   );
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const [isBlocking, setIsBlocking] = useState(false);
+  const [isCommunityPopupOpen, setIsCommunityPopupOpen] = useState(false); // New state for community popup
   const { fetchWithAuth, token, user } = useAuth();
 
   const mapOverallSafetyStatus = (backendStatus) => {
@@ -314,17 +316,31 @@ const UrlAnalysis = ({
             )}
 
             {!isUrlNonExistent && safetyStatus?.details?.url_info && userId && (
-              <div className="mt-2 flex justify-center">
-                <span className="text-gray-700 text-md font-semibold mr-3 flex justify-center items-center">
-                  Want to add a note about this website?
-                </span>
-                <button
-                  onClick={() => setIsNotePopupOpen(true)}
-                  className="flex items-center px-5 py-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none"
-                >
-                  <FaPaperPlane className="mr-2" />
-                  Add Personal Note
-                </button>
+              <div>
+                <div className="mt-2 flex justify-center">
+                  <span className="text-gray-700 text-md font-semibold mr-3 flex justify-center items-center">
+                    Want to add a note about this website?
+                  </span>
+                  <button
+                    onClick={() => setIsNotePopupOpen(true)}
+                    className="flex items-center px-5 py-2 bg-gradient-to-r from-blue-500 to-teal-400 text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none"
+                  >
+                    <FaPaperPlane className="mr-2" />
+                    Add Personal Note
+                  </button>
+                </div>
+                <div className="mt-4 flex justify-center">
+                  <span className="text-gray-700 text-md font-semibold mr-3 flex justify-center items-center">
+                    Want to share a community comment?
+                  </span>
+                  <button
+                    onClick={() => setIsCommunityPopupOpen(true)}
+                    className="flex items-center px-5 py-2 bg-gradient-to-r from-purple-500 to-pink-400 text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 focus:outline-none"
+                  >
+                    <FcFeedback className="mr-2" />
+                    Add Community Comment
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -348,6 +364,13 @@ const UrlAnalysis = ({
         url={extractedUrl || ""}
         isBlocking={isBlocking}
         maliciousEngineCount={maliciousEngineCount}
+      />
+
+      <CommunityPopup
+        isOpen={isCommunityPopupOpen}
+        onClose={() => setIsCommunityPopupOpen(false)}
+        url={extractedUrl || ""}
+        userId={userId}
       />
     </div>
   );
