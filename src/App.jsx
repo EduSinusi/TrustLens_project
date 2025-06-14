@@ -14,7 +14,6 @@ import ImageExtract from "./component/UrlScan/ImageExtract"
 import ScanHistory from "./pages/ScanHistory";
 import InfoCenter from "./pages/InfoCenter";
 import GeminiChat from "./pages/GeminiChatbot";
-import PipWindow from "./component/UrlScan/Components/PipWindow/PipWindow";
 import CybersecurityCourses from "./pages/CybersecurityCourses";
 import Quiz from "./pages/Quiz";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -40,7 +39,6 @@ const App = () => {
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/user-profile" element={<Profile />} />
           <Route path="/url-scan/webcam" element={<UrlScan />} />
-          <Route path="/url-scan/pip-window" element={<PipWindow />} />
           <Route path="/url-scan/search" element={<UrlSearchBar />} />
           <Route path="/url-scan/image" element={<ImageExtract />} />
           <Route path="/support/info" element={<InfoCenter />} />

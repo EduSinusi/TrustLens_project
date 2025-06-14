@@ -5,7 +5,6 @@ import UrlAnalysis from "./Components/UrlAnalysis";
 import UrlResult from "./Components/UrlResult";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
 import { FaCirclePlay, FaCirclePause } from "react-icons/fa6";
-import { PiPictureInPicture } from "react-icons/pi";
 import useAuth from "../../firebase/useAuth";
 
 const WebcamScan = () => {
@@ -18,7 +17,7 @@ const WebcamScan = () => {
     overall: "",
     details: {},
   });
-  const [geminiSummary, setGeminiSummary] = useState(""); // Added to store Gemini summary
+  const [geminiSummary, setGeminiSummary] = useState("");
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true);
   const [notification, setNotification] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,11 +26,9 @@ const WebcamScan = () => {
   );
   const [isCameraMenuOpen, setIsCameraMenuOpen] = useState(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
-  const [isPipMode, setIsPipMode] = useState(false);
   const [feedError, setFeedError] = useState(false);
   const navigate = useNavigate();
   const navMenuRef = useRef(null);
-  const pipWindowRef = useRef(null);
   const { user, fetchWithAuth, error: authError } = useAuth();
 
   useEffect(() => {
@@ -70,34 +67,6 @@ const WebcamScan = () => {
     };
   }, [isNavMenuOpen]);
 
-  useEffect(() => {
-    const pipData = {
-      feedUrl: webcamOn
-        ? `http://localhost:8000/video_feed/${cameraIndex}`
-        : "",
-      webcamOn,
-      isPipMode,
-    };
-    console.log("Updating localStorage with pipData:", pipData);
-    localStorage.setItem("pipData", JSON.stringify(pipData));
-
-    if (!webcamOn && pipWindowRef.current) {
-      pipWindowRef.current.close();
-      pipWindowRef.current = null;
-      setIsPipMode(false);
-    }
-  }, [webcamOn, cameraIndex, isPipMode]);
-
-  useEffect(() => {
-    return () => {
-      if (pipWindowRef.current) {
-        pipWindowRef.current.close();
-        pipWindowRef.current = null;
-      }
-      localStorage.removeItem("pipData");
-    };
-  }, []);
-
   const toggleAnalysis = () => {
     setIsAnalysisOpen(!isAnalysisOpen);
   };
@@ -122,7 +91,7 @@ const WebcamScan = () => {
       const data = await response.json();
       setExtractedUrl("");
       setSafetyStatus({ overall: "", details: {} });
-      setGeminiSummary(""); // Reset Gemini summary
+      setGeminiSummary("");
       setWebcamOn(false);
       setScanning(false);
       setLoading(false);
@@ -163,7 +132,7 @@ const WebcamScan = () => {
         setScanning(true);
         setExtractedUrl("");
         setSafetyStatus({ overall: "", details: {} });
-        setGeminiSummary(""); // Reset Gemini summary
+        setGeminiSummary("");
         setNotification("");
         console.log(data.message);
       } else {
@@ -206,7 +175,7 @@ const WebcamScan = () => {
         setSafetyStatus(
           data.safety_status || { overall: "Unknown", details: {} }
         );
-        setGeminiSummary(data.gemini_summary || "No summary available"); // Store Gemini summary
+        setGeminiSummary(data.gemini_summary || "No summary available");
         setLoading(false);
         console.log("Evaluation complete, loading set to false");
         await stopScan();
@@ -256,44 +225,6 @@ const WebcamScan = () => {
   const navigateToUrlSearch = () => {
     navigate("/url-scan/search");
     setIsNavMenuOpen(false);
-  };
-
-  const togglePipMode = () => {
-    if (isPipMode) {
-      if (pipWindowRef.current) {
-        pipWindowRef.current.close();
-        pipWindowRef.current = null;
-      }
-      setIsPipMode(false);
-    } else {
-      localStorage.setItem(
-        "pipData",
-        JSON.stringify({
-          feedUrl: `http://localhost:8000/video_feed/${cameraIndex}`,
-          webcamOn,
-          isPipMode: true,
-        })
-      );
-
-      setTimeout(() => {
-        const pipWindow = window.open(
-          "/pip-window",
-          "pipWindow",
-          "width=300,height=200,alwaysOnTop=true,toolbar=no,menubar=no,scrollbars=no"
-        );
-        if (pipWindow) {
-          pipWindowRef.current = pipWindow;
-          setIsPipMode(true);
-
-          pipWindow.onbeforeunload = () => {
-            pipWindowRef.current = null;
-            setIsPipMode(false);
-          };
-        } else {
-          console.error("Failed to open PiP window. Check popup blockers.");
-        }
-      }, 100);
-    }
   };
 
   const handleFeedError = () => {
@@ -411,19 +342,6 @@ const WebcamScan = () => {
               ) : (
                 <div className="text-gray-500">Webcam Off</div>
               )}
-              {webcamOn && !loading && (
-                <button
-                  onClick={togglePipMode}
-                  className="absolute bottom-2 right-2 bg-gray-800 text-white p-2 rounded-full shadow-md hover:bg-gray-700 transition-all z-10"
-                  title={
-                    isPipMode
-                      ? "Exit Picture-in-Picture Mode"
-                      : "Enter Picture-in-Picture Mode"
-                  }
-                >
-                  <PiPictureInPicture className="h-5 w-5" />
-                </button>
-              )}
             </div>
 
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
@@ -535,7 +453,7 @@ const WebcamScan = () => {
           <UrlAnalysis
             extractedUrl={extractedUrl}
             safetyStatus={safetyStatus}
-            gemini_summary={geminiSummary} // Pass the stored Gemini summary
+            gemini_summary={geminiSummary}
             isAnalysisOpen={isAnalysisOpen}
             toggleAnalysis={toggleAnalysis}
             isLoading={loading}
