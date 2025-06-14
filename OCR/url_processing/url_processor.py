@@ -319,38 +319,49 @@ def store_blocked_website_in_firestore(url: str, safety_status: dict, gemini_sum
     if not url or not user_uid:
         logger.log_text("No URL or user UID provided to store as blocked website", severity="ERROR")
         return
-    
+
+    # Validate safety_status shape...
     if not isinstance(safety_status, dict) or "overall" not in safety_status or "details" not in safety_status:
         safety_status = {
             "overall": "Error",
             "details": {"general": safety_status if isinstance(safety_status, str) else "Invalid safety status format"}
         }
         gemini_summary = "Error: Invalid safety status format"
-    
-    # Check if URL is already blocked in user-specific blocked_list
+
+    # Check for existing block
     doc_id = get_url_doc_id(url)
-    user_blocked_list_collection = db.collection('users').document(user_uid).collection('blocked_list')
-    existing = user_blocked_list_collection.where("url", "==", url).limit(1).get()
+    user_blocked_list = db.collection('users').document(user_uid).collection('blocked_list')
+    existing = user_blocked_list.where("url", "==", url).limit(1).get()
     if existing:
         logger.log_text(f"URL {url} already blocked for user {user_uid}", severity="INFO")
         return
-    
-    # Store only the required fields: url, overall, message, and timestamp
+
+    # Build your Firestore document (with real server‐assigned timestamp)
     data = {
         "url": url,
         "overall": safety_status.get("overall", "Unknown"),
         "message": safety_status.get("message", "No message available"),
         "timestamp": firestore.SERVER_TIMESTAMP
     }
-    
+
     try:
-        user_blocked_list_collection.document(doc_id).set(data)
+        # 1) Write to Firestore
+        user_blocked_list.document(doc_id).set(data)
+
+        # 2) For logging, make a copy *without* the SERVER_TIMESTAMP sentinel
+        log_data = {
+            "url": data["url"],
+            "overall": data["overall"],
+            "message": data["message"],
+            # just tag it as SERVER_TIMESTAMP for clarity
+            "timestamp": "SERVER_TIMESTAMP"
+        }
         logger.log_struct({
             "message": "Stored blocked website in user-specific blocked_list",
-            "url": url,
             "user_uid": user_uid,
-            "data": data
+            "data": log_data
         }, severity="INFO")
+
     except Exception as e:
         logger.log_struct({
             "message": "Failed to store blocked website in user-specific blocked_list",
@@ -375,13 +386,6 @@ def process_and_block_url(url: str, user_uid: str = None, max_attempts: int = 2)
         attempt += 1
     
     block_status = None
-    if safety_status["overall"] == "Unsafe" and user_uid:
-        blocked, status = block_unsafe_website(url)
-        if blocked:
-            store_blocked_website_in_firestore(url, safety_status, gemini_summary, user_uid)
-            block_status = status
-        else:
-            block_status = status
     
     if not safety_status.get("details"):
         safety_status["details"] = {}
