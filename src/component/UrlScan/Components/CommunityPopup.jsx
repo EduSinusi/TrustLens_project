@@ -10,6 +10,7 @@ const CommunityPopup = ({ isOpen, onClose, url, userId }) => {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState("");
+  const [rating, setRating] = useState(0);
   const chatContainerRef = useRef(null);
 
   useEffect(() => {
@@ -62,19 +63,26 @@ const CommunityPopup = ({ isOpen, onClose, url, userId }) => {
       return;
     }
 
+    if (!comment.trim() && rating === 0) {
+      toast.error("Please provide a comment or rating.");
+      return;
+    }
+
     setLoading(true);
     try {
       const scanId = Date.now().toString();
       await addDoc(collection(db, "Community"), {
         url,
-        comment,
+        comment: comment.trim() || "No comment",
         userId,
         name: userName,
+        rating: rating || 0,
         scanId,
         timestamp: new Date(),
       });
-      toast.success("Comment added successfully!");
+      toast.success("Comment and rating added successfully!");
       setComment("");
+      setRating(0);
       fetchComments();
     } catch (err) {
       console.error("Error adding comment:", err);
@@ -103,7 +111,21 @@ const CommunityPopup = ({ isOpen, onClose, url, userId }) => {
               {comments.map((c) => (
                 <div key={c.id} className="p-3 bg-blue-100 rounded-lg shadow-md">
                   <p className="text-sm font-semibold text-gray-800">{c.name || c.userId}</p>
-                  <p className="text-gray-700 mt-1">{c.comment}</p>
+                  {c.rating > 0 && (
+                    <div className="flex items-center mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <svg
+                          key={i}
+                          className={`w-5 h-5 ${i < c.rating ? "text-yellow-400" : "text-gray-300"}`}
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-gray-700 mt-1">{c.comment || "No comment"}</p>
                 </div>
               ))}
             </div>
@@ -134,9 +156,27 @@ const CommunityPopup = ({ isOpen, onClose, url, userId }) => {
               className="mt-2 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 transition duration-200 ease-in-out hover:bg-gray-50 resize-y"
               rows={3}
               placeholder="Share your thoughts about this website..."
-              required
+              required={rating === 0}
               disabled={loading}
             />
+          </div>
+          <div className="mt-4">
+            <label htmlFor="rating" className="block text-lg font-semibold text-gray-700 ml-1">
+              Rating (1-5 Stars)
+            </label>
+            <div className="flex items-center mt-2">
+              {[...Array(5)].map((_, i) => (
+                <svg
+                  key={i}
+                  className={`w-6 h-6 cursor-pointer ${i < rating ? "text-yellow-400" : "text-gray-300"}`}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  onClick={() => setRating(i + 1)}
+                >
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+              ))}
+            </div>
           </div>
           <div className="flex justify-end space-x-4 pt-4">
             <button
