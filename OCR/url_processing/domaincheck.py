@@ -670,14 +670,19 @@ def check_domain_security(url: str) -> dict:
 
     security_score = result['security_score']
     risk_summary = result['risk_summary']
-    
-    if risk_summary['critical'] > 0 or risk_summary['high'] >= 2:
+    critical_risks = risk_summary['critical']
+    high_risks = risk_summary['high']
+    medium_risks = risk_summary['medium']
+
+    if critical_risks > 0 or high_risks >= 2:
         status = "Unsafe"
         message = "High risk detected in DNS security analysis"
-    elif security_score < 25 or risk_summary['high'] >= 1 or risk_summary['medium'] > 6:
+    elif (critical_risks == 0 and high_risks == 1) or \
+         (critical_risks == 0 and high_risks == 0 and medium_risks > 6) or \
+         (critical_risks == 0 and high_risks == 0 and medium_risks <= 6 and security_score < 25):
         status = "Potentially Unsafe"
         message = "Moderate risk detected in DNS security analysis"
-    elif security_score >= 25 or risk_summary['medium'] <= 6:
+    elif critical_risks == 0 and high_risks == 0 and medium_risks <= 6 and security_score >= 25:
         status = "Safe"
         message = "Low risk detected in DNS security analysis"
     else:
