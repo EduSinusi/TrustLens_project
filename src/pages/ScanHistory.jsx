@@ -8,7 +8,7 @@ import PotentiallyUnsafeScanSection from "../component/History/PotentiallyUnsafe
 import PersonalNotesSection from "../component/History/PersonalNotes";
 import useAuth from "../firebase/useAuth";
 import Lottie from "lottie-react";
-import animationScanHistory from "../../src/assets/animation - scan history.json";
+import animationScanHistory from "../assets/Animation - scan history.json";
 
 const ScanHistory = () => {
   const { user, loading: authLoading } = useAuth();
