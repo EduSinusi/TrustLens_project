@@ -59,6 +59,10 @@ const HeroSection = () => {
               <span className="text-sky-600 font-bold mr-3">4.</span>
               Receive and review the scan result.
             </li>
+            <li className="flex items-start font-semibold text-2xl mt-10">
+              <span className="text-sky-800 font-bold mr-3">Disclaimer:</span>
+              Always check a URL before entering the website, not after.
+            </li>
           </ol>
         </div>
       </div>
