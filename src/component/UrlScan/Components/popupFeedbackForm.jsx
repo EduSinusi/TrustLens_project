@@ -133,47 +133,39 @@ const PersonalNotePopup = ({ isOpen, onClose, url }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-900/70 z-50 transition-opacity duration-300">
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-900/60 z-50 transition-opacity duration-300">
       <div
         ref={popupRef}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 hover:scale-[1.02]"
+        className="bg-white/80 backdrop-blur-md rounded-3xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 hover:scale-[1.005]"
       >
-        <div className="bg-gradient-to-r from-sky-600 to-blue-600 text-white text-center py-4 rounded-t-2xl animate-pulse-once">
-          <h3 className="text-2xl font-bold tracking-wide">
-            Add Personal Note
-          </h3>
+        <div className="bg-gradient-to-r from-sky-600 to-indigo-600 text-white text-center py-6 rounded-t-3xl animate-pulse-once">
+          <h3 className="text-3xl font-extrabold tracking-wide">Add Personal Note</h3>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 p-4">
+        <form onSubmit={handleSubmit} className="space-y-8 p-6">
           <div>
-            <label
-              htmlFor="url"
-              className="block text-lg font-semibold text-gray-700 ml-1"
-            >
+            <label htmlFor="url" className="block text-xl font-semibold text-gray-700 ml-1">
               URL
             </label>
             <input
               id="url"
               type="text"
               value={url}
-              className="mt-2 block w-full rounded-lg border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed px-4 py- personally-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
+              className="mt-2 block w-full rounded-xl border-gray-300 bg-gray-100/80 text-gray-600 cursor-not-allowed px-5 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300"
               disabled
             />
           </div>
 
           <div>
-            <label
-              htmlFor="comments"
-              className="block text-lg font-semibold text-gray-700 ml-1"
-            >
+            <label htmlFor="comments" className="block text-xl font-semibold text-gray-700 ml-1">
               Note
             </label>
             <textarea
               id="comments"
               value={comments}
               onChange={(e) => setComments(e.target.value)}
-              className="mt-2 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 transition duration-200 ease-in-out hover:bg-gray-50 resize-y"
-              rows={5}
+              className="mt-2 block w-full rounded-xl border-gray-300 bg-white/90 px-5 py-4 text-gray-700 shadow-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 transition duration-300 ease-in-out hover:bg-gray-50/90 resize-y"
+              rows={6}
               placeholder="Add your personal note about this website..."
               required
               disabled={loading}
@@ -181,10 +173,7 @@ const PersonalNotePopup = ({ isOpen, onClose, url }) => {
           </div>
 
           <div>
-            <label
-              htmlFor="screenshot"
-              className="block text-lg font-semibold text-gray-700 ml-1"
-            >
+            <label htmlFor="screenshot" className="block text-xl font-semibold text-gray-700 ml-1">
               Screenshot (Optional)
             </label>
             <input
@@ -192,7 +181,7 @@ const PersonalNotePopup = ({ isOpen, onClose, url }) => {
               type="file"
               accept="image/*"
               onChange={handleScreenshotChange}
-              className="mt-2 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:file:bg-gray-200 disabled:file:text-gray-500 transition duration-200 ease-in-out"
+              className="mt-2 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:file:bg-gray-200 disabled:file:text-gray-500 transition duration-300 ease-in-out"
               disabled={loading}
             />
             {previewUrl && (
@@ -200,30 +189,30 @@ const PersonalNotePopup = ({ isOpen, onClose, url }) => {
                 <img
                   src={previewUrl}
                   alt="Screenshot preview"
-                  className="max-w-full h-auto rounded-lg shadow-md border border-gray-300 transition duration-200 hover:shadow-lg"
+                  className="max-w-full h-auto rounded-2xl shadow-lg border border-gray-300 transition duration-300 hover:shadow-xl animate-pulse"
                 />
               </div>
             )}
           </div>
 
           {error && (
-            <p className="text-sm text-white bg-red-600 px-4 py-2 rounded-lg animate-fade-in-out">
+            <p className="text-sm text-white bg-red-600 px-4 py-2 rounded-xl animate-fade-in-out">
               {error}
             </p>
           )}
 
-          <div className="flex justify-end space-x-4 pt-4">
+          <div className="flex justify-end space-x-6 pt-6">
             <button
               type="button"
               onClick={handleCancel}
-              className="px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-gray-100 rounded-lg shadow-md font-semibold hover:from-gray-400 hover:to-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-200 disabled:opacity-50"
+              className="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl shadow-md font-semibold hover:from-gray-500 hover:to-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-300 disabled:opacity-50"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-gradient-to-r from-sky-600 to-blue-600 text-white font-semibold rounded-lg shadow-md hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 disabled:opacity-50"
+              className="px-6 py-3 bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-semibold rounded-xl shadow-md hover:from-indigo-500 hover:to-purple-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300 disabled:opacity-50"
               disabled={loading}
             >
               {loading ? "Adding Note..." : "Add Note"}
