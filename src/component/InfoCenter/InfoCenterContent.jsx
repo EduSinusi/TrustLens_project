@@ -28,7 +28,7 @@ export default function InfoCenterContent() {
     }, []);
   }, [searchQuery]);
 
-  // Handle external link click similar to Beginner.jsx
+  // Handle external link click with copy on cancel
   const handleExternalLinkClick = (e, url) => {
     const currentHost = window.location.hostname;
     const linkHost = new URL(url, window.location.href).hostname;
@@ -36,10 +36,24 @@ export default function InfoCenterContent() {
     if (linkHost !== currentHost && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       const confirmed = window.confirm(
-        "You are about to visit an external website. Do you want to proceed?"
+        `You are about to visit an external website (${url}). Do you want to proceed?`
       );
       if (confirmed) {
+        // User chose OK to proceed
         window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        // User chose Cancel, copy the link to clipboard
+        navigator.clipboard
+          .writeText(url)
+          .then(() => {
+            alert(
+              "Link copied to clipboard. Check its safety status in TrustLens Safe Search!"
+            );
+          })
+          .catch((err) => {
+            console.error("Failed to copy link: ", err);
+            alert("Failed to copy the link. Please copy it manually: " + url);
+          });
       }
     }
   };

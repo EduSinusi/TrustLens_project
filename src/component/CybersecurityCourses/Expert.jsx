@@ -52,10 +52,22 @@ const ExpertCourses = () => {
 
   const handleLinkClick = (link) => {
     const confirmed = window.confirm(
-      "You are about to visit an external website. Do you want to proceed?"
+      `You are about to visit an external website (${link}). Do you want to proceed?`
     );
     if (confirmed) {
       window.open(link, "_blank", "noopener,noreferrer");
+    } else {
+      navigator.clipboard
+        .writeText(link)
+        .then(() => {
+          alert(
+            "Link copied to clipboard. Check its safety status in TrustLens Safe Search!"
+          );
+        })
+        .catch((err) => {
+          console.error("Failed to copy link: ", err);
+          alert("Failed to copy the link. Please copy it manually: " + link);
+        });
     }
   };
 
