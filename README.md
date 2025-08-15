@@ -6,46 +6,30 @@ It can extract URLs from images (OCR) and offers a chatbot helper for guidance.
 🎥 Demo Video: https://youtu.be/H7Tog2lHtOQ
 
 Features
-
-OCR: Detects and extracts text/links from images.
-
-Chatbot: Answers questions and gives safe-browsing advice.
+- OCR: Detects and extracts text/links from images.
+- Chatbot: Answers questions and gives safe-browsing advice.
 
 React + Vite Frontend: Fast, modern, and responsive UI.
 
-Quick Start
+Quick Start Tutorial
 
-Clone the repo
+1. Clone the repo
 
-git clone https://github.com/EduSinusi/TrustLens_project.git
-cd TrustLens_project
+    git clone https://github.com/EduSinusi/TrustLens_project.git
+    cd TrustLens_project
 
+2. Install dependencies
 
-Install dependencies
+    npm install
 
-npm install
+3. Run the development server
 
-
-Run the development server
-
-npm run dev
-
-
-Open the URL shown in your terminal.
-
-Project Structure
-TrustLens_project/
-├─ Chatbot/     # Chatbot module
-├─ OCR/         # OCR module
-├─ public/      # Static files
-├─ src/         # React source code
+    npm run dev
 
 Requirements
-
-Node.js v18+
-
-(Optional) Python 3.10+ for OCR features
+- Node.js v18+
+- (Optional) Python 3.10+ for OCR features
 
 License
 
-Currently no license specified – all rights reserved unless stated otherwise.
+There are no license specified – all rights reserved unless stated otherwise.
