@@ -1,4 +1,4 @@
-TrustLens
+TrustLens: Assessing Website Safety via Optical Character Recognition (OCR) Technology
 
 TrustLens is a web app designed to help users check link safety and learn safer browsing habits.
 It can extract URLs from images (OCR) and offers a chatbot helper for guidance.
